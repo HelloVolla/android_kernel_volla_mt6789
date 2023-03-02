@@ -275,7 +275,14 @@ static int tcpci_alert_recv_msg(struct tcpc_device *tcpc)
 	int retval;
 	struct pd_msg *pd_msg;
 	enum tcpm_transmit_type type;
-
+//prize add by lipengpeng 20220530 start	
+	int rv = 0;
+	uint32_t chip_id = 0;
+	rv = tcpci_get_chip_id(tcpc, &chip_id);
+	if (!rv && (SC2150A_DID == chip_id || chip_id == SC2150B_DID)) {
+		//tcpci_set_rx_enable(tcpc, PD_RX_CAP_PE_STARTUP);
+	}
+//prize add by lipengpeng 20220530 end
 	pd_msg = pd_alloc_msg(tcpc);
 	if (pd_msg == NULL) {
 		tcpci_alert_status_clear(tcpc, TCPC_REG_ALERT_RX_MASK);
@@ -288,6 +295,12 @@ static int tcpci_alert_recv_msg(struct tcpc_device *tcpc)
 		TCPC_INFO("recv_msg failed: %d\n", retval);
 		pd_free_msg(tcpc, pd_msg);
 		return retval;
+//prize add by lipengpeng 20220530 start
+	}
+
+	if (!rv && (SC2150A_DID == chip_id || chip_id == SC2150B_DID)) {
+		//tcpci_set_rx_enable(tcpc, tcpc->pd_port.rx_cap);
+//prize add by lipengpeng 20220530 end
 	}
 
 	pd_msg->frame_type = (uint8_t) type;
@@ -424,12 +437,16 @@ static inline bool tcpci_check_hard_reset_complete(
 int tcpci_alert(struct tcpc_device *tcpc)
 {
 #if !CONFIG_USB_PD_DBG_SKIP_ALERT_HANDLER
-	int i;
+//prize add by lipengpeng 20220530 start
+	int i=0;
+//prize add by lipengpeng 20220530 end
 #endif /* CONFIG_USB_PD_DBG_SKIP_ALERT_HANDLER */
-	int rv;
-	uint32_t alert_status;
-	uint32_t alert_mask;
-
+//prize add by lipengpeng 20220530 start
+	int rv=0;
+	uint32_t alert_status=0;
+	uint32_t alert_mask=0;
+	uint32_t chip_id;
+//prize add by lipengpeng 20220530 end
 	rv = tcpci_get_alert_status(tcpc, &alert_status);
 	if (rv)
 		return rv;
@@ -448,8 +465,12 @@ int tcpci_alert(struct tcpc_device *tcpc)
 		TCPC_INFO("Alert:0x%04x, Mask:0x%04x\n",
 			  alert_status, alert_mask);
 #endif /* CONFIG_USB_PD_DBG_ALERT_STATUS */
-
-	alert_status &= alert_mask;
+//prize add by lipengpeng 20220530 start
+//	alert_status &= alert_mask;
+	rv = tcpci_get_chip_id(tcpc,&chip_id);
+	if (rv || (SC2150A_DID != chip_id && chip_id != SC2150B_DID))
+//prize add by lipengpeng 20220530 end
+		alert_status &= alert_mask;
 
 	tcpci_alert_status_clear(tcpc,
 		alert_status & (~TCPC_REG_ALERT_RX_MASK));

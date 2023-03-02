@@ -38,6 +38,11 @@
 #if IS_ENABLED(CONFIG_MTK_SCP_AUDIO)
 #include "../audio_scp/mtk-scp-audio-pcm.h"
 #endif
+//prize add by lipengpeng 20220607 start
+#if IS_ENABLED(CONFIG_SND_SOC_AW8839X)
+#include "../../codecs/aw883xx/aw883xx.h"
+#endif
+//prize add by lipengpeng 20220607 end
 
 #define MTK_SPK_NAME "Speaker Codec"
 #define MTK_SPK_REF_NAME "Speaker Codec Ref"
@@ -72,6 +77,16 @@ static struct mtk_spk_i2c_ctrl mtk_spk_list[MTK_SPK_TYPE_NUM] = {
 		.codec_name = "tfa98xx",
 	},
 #endif /* CONFIG_SND_SOC_TFA9874 */
+//prize add by lipengpeng 20220607 start
+#if IS_ENABLED(CONFIG_SND_SOC_AW8839X)
+        [MTK_SPK_AWINIC_AW883XX] = {
+                //.i2c_probe = aw883xx_i2c_probe,
+                //.i2c_remove = aw883xx_i2c_remove,
+                .codec_dai_name = "aw883xx-aif-6-34",
+                .codec_name = "aw883xx_smartpa.6-0034",
+        },
+#endif 
+//prize add by lipengpeng 20220607 end
 };
 
 static int mtk_spk_i2c_probe(struct i2c_client *client,
@@ -80,8 +95,9 @@ static int mtk_spk_i2c_probe(struct i2c_client *client,
 	int i, ret = 0;
 
 	dev_info(&client->dev, "%s()\n", __func__);
-
-	mtk_spk_type = MTK_SPK_NOT_SMARTPA;
+//prize add by lipengpeng 20220615 start 
+	mtk_spk_type = 5;
+//prize add by lipengpeng 20220615 end 	
 	for (i = 0; i < MTK_SPK_TYPE_NUM; i++) {
 		if (!mtk_spk_list[i].i2c_probe)
 			continue;
@@ -93,7 +109,9 @@ static int mtk_spk_i2c_probe(struct i2c_client *client,
 		mtk_spk_type = i;
 		break;
 	}
-
+//prize add by lipengpeng 20220615 start 
+   mtk_spk_type = 5;
+//prize add by lipengpeng 20220615 end
 	return ret;
 }
 
@@ -123,7 +141,9 @@ EXPORT_SYMBOL(mtk_spk_get_type);
 
 void mtk_spk_set_type(int spk_type)
 {
-	mtk_spk_type = spk_type;
+//prize add by lipengpeng 20220615 start 
+	mtk_spk_type = 5;
+//prize add by lipengpeng 20220615 end 	
 }
 EXPORT_SYMBOL(mtk_spk_set_type);
 
@@ -166,7 +186,9 @@ int mtk_spk_update_info(struct snd_soc_card *card,
 	int i2s_in_dai_link_idx = -1;
 	const int i2s_num = 2;
 	unsigned int i2s_set[2];
-
+//prize add by lipengpeng 20220615 start 
+    mtk_spk_type=5;
+//prize add by lipengpeng 20220615 end 	
 	if (mtk_spk_type == MTK_SPK_NOT_SMARTPA)
 		goto BYPASS_UPDATE;
 

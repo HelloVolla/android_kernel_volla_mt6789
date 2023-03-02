@@ -34,7 +34,7 @@
 #include <linux/i2c.h>
 //#include "lcm_i2c.h"
 
-#define HFP_SUPPORT 0
+#define HFP_SUPPORT 1
 
 #if HFP_SUPPORT
 static int current_fps = 60;
@@ -247,6 +247,8 @@ static void jdi_dcs_write(struct jdi *ctx, const void *data, size_t len)
 
 static void jdi_panel_init(struct jdi *ctx)
 {
+	printk("ft8722 init end\n");
+	
 	ctx->reset_gpio = devm_gpiod_get(ctx->dev, "reset", GPIOD_OUT_HIGH);
 	usleep_range(10 * 1000, 15 * 1000);
 	gpiod_set_value(ctx->reset_gpio, 0);
@@ -255,406 +257,248 @@ static void jdi_panel_init(struct jdi *ctx)
 	usleep_range(10 * 1000, 15 * 1000);
 	devm_gpiod_put(ctx->dev, ctx->reset_gpio);
 
-	jdi_dcs_write_seq_static(ctx, 0XFF, 0X10);
-	//REGR 0XFE,0X10
-	jdi_dcs_write_seq_static(ctx, 0XFB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0XB0, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0XC0, 0X03);//JDI VESA
-	jdi_dcs_write_seq_static(ctx, 0XC1, 0X89,0X28,0X00,0X08,0X00,0XAA,0X02,0X0E,0X00,0X2B,0X00,0X07,0X0D,0XB7,0X0C,0XB7);//JDI VESA
-	//DSC ON && set PPS
-	#if 1
-	jdi_dcs_write_seq_static(ctx, 0xC0, 0x03);
-	jdi_dcs_write_seq_static(ctx, 0xC1, 0x89, 0x28, 0x00, 0x14, 0x00, 0xAA,
-				0x02, 0x0E, 0x00, 0x71, 0x00, 0x07, 0x05, 0x0E,
-				0x05, 0x16);
-	jdi_dcs_write_seq_static(ctx, 0xC2, 0x1B, 0XA0);
-	#else
-	jdi_dcs_write_seq_static(ctx, 0XC0, 0X03);//JDI VESA
-	jdi_dcs_write_seq_static(ctx, 0XC1, 0X89, 0X28, 0X00, 0X08, 0X00, 0XAA,
-				0X02, 0X0E, 0X00, 0X2B, 0X00, 0X07, 0X0D, 0XB7,
-				0X0C, 0XB7);//JDI VESA
-	jdi_dcs_write_seq_static(ctx, 0XC2, 0X1B, 0XA0);
-#endif
-	jdi_dcs_write_seq_static(ctx, 0XE9, 0X01);
+	//jdi_dcs_write_seq_static(ctx, 0xB6,0x07,0x20);
+	jdi_dcs_write_seq_static(ctx,0x00,0x00);
+	jdi_dcs_write_seq_static(ctx,0xff,0x87,0x22,0x01);
+	jdi_dcs_write_seq_static(ctx,0x00,0x80);
+	jdi_dcs_write_seq_static(ctx,0xff,0x87,0x22);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xa3);                
+	jdi_dcs_write_seq_static(ctx, 0xb3,0x09,0x68); //2408
+	jdi_dcs_write_seq_static(ctx, 0x00, 0x80);
+	jdi_dcs_write_seq_static(ctx, 0xC0, 0x00 ,0xB0 ,0x00 ,0x2C ,0x00 ,0x14);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0x90);
+	jdi_dcs_write_seq_static(ctx, 0xC0, 0x00 ,0x4B ,0x00 ,0x2C ,0x00 ,0x14);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xA0);
+	jdi_dcs_write_seq_static(ctx, 0xC0, 0x00 ,0x4B ,0x00 ,0x2C ,0x00 ,0x14);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xB0);
+	jdi_dcs_write_seq_static(ctx, 0xC0, 0x00 ,0xD4 ,0x00 ,0x2C ,0x14);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xC1);
+	jdi_dcs_write_seq_static(ctx, 0xC0, 0x01 ,0x08 ,0x00 ,0xD1 ,0x00 ,0xB0 ,0x01 ,0x3A);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0x70);
+	jdi_dcs_write_seq_static(ctx, 0xC0, 0x00 ,0x4B ,0x00 ,0x2C ,0x00 ,0x14);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xA3);
+	jdi_dcs_write_seq_static(ctx, 0xC1, 0x00, 0x54, 0x00 ,0x54 ,0x00 ,0x02);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xB7);
+	jdi_dcs_write_seq_static(ctx, 0xC1, 0x00 ,0x54);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0x80);
+	jdi_dcs_write_seq_static(ctx, 0xCE, 0x01, 0x81 ,0xFF ,0xFF ,0x00 ,0x85 ,0x00 ,0x85 ,0x00 ,0xC8 ,0x00 ,0xC8 ,0x00 ,0xC8 ,0x00,0xC8);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0x90);
+	jdi_dcs_write_seq_static(ctx, 0xCE, 0x00 ,0xBD ,0x12 ,0x75 ,0x00 ,0xBD ,0x80 ,0xFF ,0xFF ,0x00 ,0x06 ,0x40 ,0x0A ,0x0D ,0x0D);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xA0);
+	jdi_dcs_write_seq_static(ctx, 0xCE, 0x00 ,0x00 ,0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xB0);
+	jdi_dcs_write_seq_static(ctx, 0xCE, 0x22 ,0x00 ,0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xD1);
+	jdi_dcs_write_seq_static(ctx, 0xCE, 0x00 ,0x00 ,0x01 ,0x00 ,0x00 ,0x00 ,0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xE1);
+	jdi_dcs_write_seq_static(ctx, 0xCE, 0x0A ,0x03 ,0x14 ,0x03 ,0x14 ,0x03 ,0x14 ,0x00 ,0x00 ,0x00 ,0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xF1);
+	jdi_dcs_write_seq_static(ctx, 0xCE, 0x0E ,0x2A ,0x2A ,0x01 ,0x42 ,0x01 ,0x09 ,0x01 ,0x09);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xB0);
+	jdi_dcs_write_seq_static(ctx, 0xCF, 0x00 ,0x00 ,0xC2 ,0xC6);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xB5);
+	jdi_dcs_write_seq_static(ctx, 0xCF, 0x05 ,0x05 ,0x72 ,0x76);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xC0);
+	jdi_dcs_write_seq_static(ctx, 0xCF, 0x09 ,0x09 ,0x63 ,0x67);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xC5);
+	jdi_dcs_write_seq_static(ctx, 0xCF, 0x09 ,0x09 ,0x69 ,0x6D);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0x60);
+	jdi_dcs_write_seq_static(ctx, 0xCF, 0x00 ,0x00 ,0xC2 ,0xC6 ,0x05 ,0x05 ,0x72 ,0x76);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0x70);
+	jdi_dcs_write_seq_static(ctx, 0xCF, 0x00 ,0x00 ,0xC2 ,0xC6 ,0x05 ,0x05 ,0x72 ,0x76);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xD1);
+	jdi_dcs_write_seq_static(ctx, 0xC1, 0x0A ,0xEC ,0x0F ,0x19 ,0x19 ,0xD4 ,0x0A ,0xCE ,0x0F ,0x19 ,0x19 ,0xD4);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xE1);
+	jdi_dcs_write_seq_static(ctx, 0xC1, 0x0F ,0x19);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xE4);
+	jdi_dcs_write_seq_static(ctx, 0xCF, 0x09 ,0xF8 ,0x09 ,0xF7 ,0x09 ,0xF7 ,0x09 ,0xF7 ,0x09 ,0xF7 ,0x09 ,0xF7);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0x80);
+	jdi_dcs_write_seq_static(ctx, 0xC1, 0x44 ,0x44);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0x90);
+	jdi_dcs_write_seq_static(ctx, 0xC1, 0x03);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xF5);
+	jdi_dcs_write_seq_static(ctx, 0xCF, 0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xF6);
+	jdi_dcs_write_seq_static(ctx, 0xCF, 0x78);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xF1);
+	jdi_dcs_write_seq_static(ctx, 0xCF, 0x78);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0xF7);
+	jdi_dcs_write_seq_static(ctx, 0xCF, 0x11);
+	jdi_dcs_write_seq_static(ctx, 0x00, 0x8F);
+	jdi_dcs_write_seq_static(ctx, 0xC5, 0x20);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x80);
+	jdi_dcs_write_seq_static(ctx, 0xC2,0x82,0x01,0x25,0x25,0x00,0x00,0x00,0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x90);
+	jdi_dcs_write_seq_static(ctx, 0xC2,0x00,0x00,0x00,0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xA0);
+	jdi_dcs_write_seq_static(ctx, 0xC2,0x00,0x80,0x00,0x17,0x8A,0x01,0x00,0x00,0x17,0x8A,0x02,0x01,0x00,0x17,0x8A);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xB0);
+	jdi_dcs_write_seq_static(ctx, 0xC2,0x03,0x02,0x00,0x17,0x8A,0x80,0x08,0x03,0x00,0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xCA);
+	jdi_dcs_write_seq_static(ctx, 0xC2,0x84,0x08,0x03,0x00,0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xE0);
+	jdi_dcs_write_seq_static(ctx, 0xC2,0x33,0x33,0x70,0x00,0x70);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xE8);			
+	jdi_dcs_write_seq_static(ctx, 0xC2,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00);			
+	jdi_dcs_write_seq_static(ctx, 0x00,0x80);
+	jdi_dcs_write_seq_static(ctx, 0xCB,0x00,0x01,0x00,0x03,0xFD,0x01,0x01,0x00,0x00,0x00,0xFD,0x01,0x00,0x03,0x00,0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x90);
+	jdi_dcs_write_seq_static(ctx, 0xCB,0x00,0x00,0x00,0x0C,0xF0,0x00,0x00,0x00,0x00,0x00,0xFC,0x00,0x00,0x00,0x00,0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xA0);
+	jdi_dcs_write_seq_static(ctx, 0xCB,0x00,0x00,0x00,0x00,0x03,0x00,0x0C,0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xB0);
+	jdi_dcs_write_seq_static(ctx, 0xCB,0x13,0x54,0x05,0x30);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xC0);
+	jdi_dcs_write_seq_static(ctx, 0xCB,0x13,0x54,0x05,0x30);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xD5);
+	jdi_dcs_write_seq_static(ctx, 0xCB,0x01,0x00,0x01,0x01,0x00,0x01,0x01,0x00,0x01,0x01,0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xE0);
+	jdi_dcs_write_seq_static(ctx, 0xCB,0x01,0x01,0x00,0x01,0x01,0x00,0x01,0x01,0x00,0x01,0x01,0x00,0x01);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x80);
+	jdi_dcs_write_seq_static(ctx, 0xCC,0x2C,0x12,0x2C,0x22,0x2C,0x0A,0x2C,0x2C,0x09,0x08,0x07,0x06,0x2C,0x2C,0x2C,0x2C);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x90);
+	jdi_dcs_write_seq_static(ctx, 0xCC,0x2C,0x18,0x16,0x17,0x2C,0x1C,0x1D,0x1E);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xA0);
+	jdi_dcs_write_seq_static(ctx, 0xCC,0x2C,0x12,0x2C,0x23,0x2C,0x0E,0x2C,0x2C,0x06,0x07,0x08,0x09,0x2C,0x2C,0x2C,0x2C);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xB0);
+	jdi_dcs_write_seq_static(ctx, 0xCC,0x2C,0x18,0x16,0x17,0x2C,0x1C,0x1D,0x1E);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x80);
+	jdi_dcs_write_seq_static(ctx, 0xCD,0x2C,0x2C,0x2C,0x02,0x2C,0x0A,0x2C,0x2C,0x09,0x08,0x07,0x06,0x2C,0x2C,0x2C,0x2C);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x90);
+	jdi_dcs_write_seq_static(ctx, 0xCD,0x2C,0x18,0x16,0x17,0x2C,0x1C,0x1D,0x1E);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xA0);
+	jdi_dcs_write_seq_static(ctx, 0xCD,0x2C,0x2C,0x2C,0x02,0x2C,0x0E,0x2C,0x2C,0x06,0x07,0x08,0x09,0x2C,0x2C,0x2C,0x2C);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xB0);
+	jdi_dcs_write_seq_static(ctx, 0xCD,0x2C,0x18,0x16,0x17,0x2C,0x1C,0x1D,0x1E);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x86);//Normal
+	jdi_dcs_write_seq_static(ctx, 0xC0,0x00,0x00,0x00,0x01,0x11,0x11,0x11,0x05);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x96);//IDLE
+	jdi_dcs_write_seq_static(ctx, 0xC0,0x00,0x00,0x00,0x01,0x11,0x11,0x11,0x05);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xA6);//LPF
+	jdi_dcs_write_seq_static(ctx, 0xC0,0x00,0x00,0x00,0x01,0x11,0x11,0x11,0x05);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xA3);//PER_DMY
+	jdi_dcs_write_seq_static(ctx, 0xCE,0x00,0x00,0x00,0x01,0x11,0x05);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xB3);//POS_DMY
+	jdi_dcs_write_seq_static(ctx, 0xCE,0x00,0x00,0x00,0x01,0x11,0x05);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x76);//FIFO
+	jdi_dcs_write_seq_static(ctx, 0xC0,0x00,0x00,0x00,0x01,0x11,0x11,0x11,0x05);		
+	jdi_dcs_write_seq_static(ctx, 0x00,0x82);			
+	jdi_dcs_write_seq_static(ctx, 0xa7,0x10,0x00);						
+	jdi_dcs_write_seq_static(ctx, 0x00,0x8d);			
+	jdi_dcs_write_seq_static(ctx, 0xa7,0x01);						
+	jdi_dcs_write_seq_static(ctx, 0x00,0x8f);			
+	jdi_dcs_write_seq_static(ctx, 0xa7,0x01);		
+	jdi_dcs_write_seq_static(ctx, 0x00,0xA0);			
+	jdi_dcs_write_seq_static(ctx, 0xC3,0x35,0x21);			
+	jdi_dcs_write_seq_static(ctx, 0x00,0xA4);			
+	jdi_dcs_write_seq_static(ctx, 0xC3,0x01,0x20);			
+	jdi_dcs_write_seq_static(ctx, 0x00,0xAA);			
+	jdi_dcs_write_seq_static(ctx, 0xC3,0x21);			
+	jdi_dcs_write_seq_static(ctx, 0x00,0xAd);			
+	jdi_dcs_write_seq_static(ctx, 0xC3,0x01);			
+	jdi_dcs_write_seq_static(ctx, 0x00,0xAe);			
+	jdi_dcs_write_seq_static(ctx, 0xC3,0x20);			
+	jdi_dcs_write_seq_static(ctx, 0x00,0xb3);			
+	jdi_dcs_write_seq_static(ctx, 0xC3,0x21);			
+	jdi_dcs_write_seq_static(ctx, 0x00,0xb6);			
+	jdi_dcs_write_seq_static(ctx, 0xC3,0x01,0x20);			
+	jdi_dcs_write_seq_static(ctx, 0x00,0xC3);			
+	jdi_dcs_write_seq_static(ctx, 0xC5,0xFF);			
+	jdi_dcs_write_seq_static(ctx, 0x00,0xA9);			
+	jdi_dcs_write_seq_static(ctx, 0xF5,0x8E);		
+	jdi_dcs_write_seq_static(ctx, 0x00,0x93);
+	jdi_dcs_write_seq_static(ctx, 0xC5,0x25);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x97);
+	jdi_dcs_write_seq_static(ctx, 0xC5,0x25);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x9A);
+	jdi_dcs_write_seq_static(ctx, 0xC5,0x21);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x9C);
+	jdi_dcs_write_seq_static(ctx, 0xC5,0x21);			
+	jdi_dcs_write_seq_static(ctx, 0x00,0xB6);			
+	jdi_dcs_write_seq_static(ctx, 0xC5,0x10,0x10,0x0E,0x0E,0x10,0x10,0x0E,0x0E);										
+	jdi_dcs_write_seq_static(ctx, 0x00,0x90);			
+	jdi_dcs_write_seq_static(ctx, 0xc3,0x08);			
+	jdi_dcs_write_seq_static(ctx, 0x00,0xfa);			
+	jdi_dcs_write_seq_static(ctx, 0xc2,0x23);					
+	jdi_dcs_write_seq_static(ctx, 0x00,0xca);			
+	jdi_dcs_write_seq_static(ctx, 0xc0,0x80);					
+	jdi_dcs_write_seq_static(ctx, 0x00,0x82);			
+	jdi_dcs_write_seq_static(ctx, 0xF5,0x01);					
+	jdi_dcs_write_seq_static(ctx, 0x00,0x93);			
+	jdi_dcs_write_seq_static(ctx, 0xF5,0x01);				
+	jdi_dcs_write_seq_static(ctx, 0x00,0x9b);			
+	jdi_dcs_write_seq_static(ctx, 0xF5,0x49);			
+	jdi_dcs_write_seq_static(ctx, 0x00,0x9d);			
+	jdi_dcs_write_seq_static(ctx, 0xF5,0x49);						
+	jdi_dcs_write_seq_static(ctx, 0x00,0xbe);			
+	jdi_dcs_write_seq_static(ctx, 0xc5,0xF0,0xF0);					
+	jdi_dcs_write_seq_static(ctx, 0x00,0xdc);			
+	jdi_dcs_write_seq_static(ctx, 0xc3,0x37);				
+	jdi_dcs_write_seq_static(ctx, 0x00,0x8A);			
+	jdi_dcs_write_seq_static(ctx, 0xF5,0xC7);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xB1);			
+	jdi_dcs_write_seq_static(ctx, 0xF5,0x1F);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xB7);			
+	jdi_dcs_write_seq_static(ctx, 0xF5,0x1F);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x99);			
+	jdi_dcs_write_seq_static(ctx, 0xCF,0x50);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x9C);			
+	jdi_dcs_write_seq_static(ctx, 0xF5,0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x9E);			
+	jdi_dcs_write_seq_static(ctx, 0xF5,0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xB0);			
+	jdi_dcs_write_seq_static(ctx, 0xC5,0xC0,0x4A,0x39,0xC0,0x4A,0x0E);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xC2);			
+	jdi_dcs_write_seq_static(ctx, 0xF5,0x42);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x80);
+	jdi_dcs_write_seq_static(ctx, 0xC5,0x77);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xE8);
+	jdi_dcs_write_seq_static(ctx, 0xC0,0x40);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x00);
+	jdi_dcs_write_seq_static(ctx, 0xE1,0x00,0x02,0x07,0x0F,0x36,0x1A,0x22,0x29,0x34,0xBA,0x3D,0x44,0x4A,0x4F,0x1B,0x54,0x5D,0x65,0x6C,0xD6,0x73,0x7B,0x83,0x8C,0xD4,0x96,0x9C,0xA3,0xAA,0x93,0xB3,0xBE,0xCD,0xD5,0xF3,0xE0,0xEF,0xF9,0xFF,0x84);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x30);
+	jdi_dcs_write_seq_static(ctx, 0xE1,0x00,0x02,0x07,0x0F,0x36,0x1A,0x22,0x29,0x34,0xBA,0x3D,0x44,0x4A,0x4F,0x1B,0x54,0x5D,0x65,0x6C,0xD6,0x73,0x7B,0x83,0x8C,0xD4,0x96,0x9C,0xA3,0xAA,0x93,0xB3,0xBE,0xCD,0xD5,0xF3,0xE0,0xEF,0xF9,0xFF,0x84);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x60);
+	jdi_dcs_write_seq_static(ctx, 0xE1,0x00,0x02,0x07,0x0F,0x36,0x1A,0x22,0x29,0x34,0xBA,0x3D,0x44,0x4A,0x4F,0x1B,0x54,0x5D,0x65,0x6C,0xD6,0x73,0x7B,0x83,0x8C,0xD4,0x96,0x9C,0xA3,0xAA,0x93,0xB3,0xBE,0xCD,0xD5,0xF3,0xE0,0xEF,0xF9,0xFF,0x84);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x90);
+	jdi_dcs_write_seq_static(ctx, 0xE1,0x00,0x02,0x07,0x0F,0x36,0x1A,0x22,0x29,0x34,0xBA,0x3D,0x44,0x4A,0x4F,0x1B,0x54,0x5D,0x65,0x6C,0xD6,0x73,0x7B,0x83,0x8C,0xD4,0x96,0x9C,0xA3,0xAA,0x93,0xB3,0xBE,0xCD,0xD5,0xF3,0xE0,0xEF,0xF9,0xFF,0x84);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xC0);
+	jdi_dcs_write_seq_static(ctx, 0xE1,0x00,0x02,0x07,0x0F,0x36,0x1A,0x22,0x29,0x34,0xBA,0x3D,0x44,0x4A,0x4F,0x1B,0x54,0x5D,0x65,0x6C,0xD6,0x73,0x7B,0x83,0x8C,0xD4,0x96,0x9C,0xA3,0xAA,0x93,0xB3,0xBE,0xCD,0xD5,0xF3,0xE0,0xEF,0xF9,0xFF,0x84);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xF0);
+	jdi_dcs_write_seq_static(ctx, 0xE1,0x00,0x02,0x07,0x0F,0x36,0x1A,0x22,0x29,0x34,0xBA,0x3D,0x44,0x4A,0x4F,0x1B,0x54);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x00);
+	jdi_dcs_write_seq_static(ctx, 0xE2,0x5D,0x65,0x6C,0xD6,0x73,0x7B,0x83,0x8C,0xD4,0x96,0x9C,0xA3,0xAA,0x93,0xB3,0xBE,0xCD,0xD5,0xF3,0xE0,0xEF,0xF9,0xFF,0x84);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xE0);
+	jdi_dcs_write_seq_static(ctx, 0xCF,0x34);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x85);
+	jdi_dcs_write_seq_static(ctx, 0xA7,0x41);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x80);
+	jdi_dcs_write_seq_static(ctx, 0xB3,0x22);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xB0);
+	jdi_dcs_write_seq_static(ctx, 0xB3,0x00);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x83);
+	jdi_dcs_write_seq_static(ctx, 0xB0,0x63);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xA1);
+	jdi_dcs_write_seq_static(ctx, 0xB0,0x02);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xA9);
+	jdi_dcs_write_seq_static(ctx, 0xB0,0xAA,0x0A);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xB0);
+	jdi_dcs_write_seq_static(ctx, 0xCA,0x01,0x01,0x0C);
+	jdi_dcs_write_seq_static(ctx, 0x00,0xB5);
+	jdi_dcs_write_seq_static(ctx, 0xCA,0x08);
+	jdi_dcs_write_seq_static(ctx, 0x1c,0x02);
 
-	jdi_dcs_write_seq_static(ctx, 0XFF, 0X20);
-	//REGR 0XFE,0X20
-	jdi_dcs_write_seq_static(ctx, 0XFB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X01, 0X66);
-	jdi_dcs_write_seq_static(ctx, 0X06, 0X40);
-	jdi_dcs_write_seq_static(ctx, 0X07, 0X38);
-	jdi_dcs_write_seq_static(ctx, 0X18, 0X77);
-	jdi_dcs_write_seq_static(ctx, 0X69, 0X91);
-	jdi_dcs_write_seq_static(ctx, 0X95, 0XD1);
-	jdi_dcs_write_seq_static(ctx, 0X96, 0XD1);
-	jdi_dcs_write_seq_static(ctx, 0XF2, 0X65);
-	jdi_dcs_write_seq_static(ctx, 0XF3, 0X74);
-	jdi_dcs_write_seq_static(ctx, 0XF4, 0X65);
-	jdi_dcs_write_seq_static(ctx, 0XF5, 0X74);
-	jdi_dcs_write_seq_static(ctx, 0XF6, 0X65);
-	jdi_dcs_write_seq_static(ctx, 0XF7, 0X74);
-	jdi_dcs_write_seq_static(ctx, 0XF8, 0X65);
-	jdi_dcs_write_seq_static(ctx, 0XF9, 0X74);
 
-	jdi_dcs_write_seq_static(ctx, 0x89, 0x15);//VCOM
-	jdi_dcs_write_seq_static(ctx, 0x8A, 0x15);//VCOM
-	jdi_dcs_write_seq_static(ctx, 0x8D, 0x15);//VCOM
-	jdi_dcs_write_seq_static(ctx, 0x8E, 0x15);//VCOM
-	jdi_dcs_write_seq_static(ctx, 0x8F, 0x15);//VCOM
-	jdi_dcs_write_seq_static(ctx, 0x91, 0x15);//VCOM
-
-	jdi_dcs_write_seq_static(ctx, 0XFF, 0X24);
-	//REGR 0XFE,0X24
-	jdi_dcs_write_seq_static(ctx, 0XFB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X01, 0X0F);
-	jdi_dcs_write_seq_static(ctx, 0X03, 0X0C);
-	jdi_dcs_write_seq_static(ctx, 0X05, 0X1D);
-	jdi_dcs_write_seq_static(ctx, 0X08, 0X2F);
-	jdi_dcs_write_seq_static(ctx, 0X09, 0X2E);
-	jdi_dcs_write_seq_static(ctx, 0X0A, 0X2D);
-	jdi_dcs_write_seq_static(ctx, 0X0B, 0X2C);
-	jdi_dcs_write_seq_static(ctx, 0X11, 0X17);
-	jdi_dcs_write_seq_static(ctx, 0X12, 0X13);
-	jdi_dcs_write_seq_static(ctx, 0X13, 0X15);
-	jdi_dcs_write_seq_static(ctx, 0X15, 0X14);
-	jdi_dcs_write_seq_static(ctx, 0X16, 0X16);
-	jdi_dcs_write_seq_static(ctx, 0X17, 0X18);
-	jdi_dcs_write_seq_static(ctx, 0X1B, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X1D, 0X1D);
-	jdi_dcs_write_seq_static(ctx, 0X20, 0X2F);
-	jdi_dcs_write_seq_static(ctx, 0X21, 0X2E);
-	jdi_dcs_write_seq_static(ctx, 0X22, 0X2D);
-	jdi_dcs_write_seq_static(ctx, 0X23, 0X2C);
-	jdi_dcs_write_seq_static(ctx, 0X29, 0X17);
-	jdi_dcs_write_seq_static(ctx, 0X2A, 0X13);
-	jdi_dcs_write_seq_static(ctx, 0X2B, 0X15);
-	jdi_dcs_write_seq_static(ctx, 0X2F, 0X14);
-	jdi_dcs_write_seq_static(ctx, 0X30, 0X16);
-	jdi_dcs_write_seq_static(ctx, 0X31, 0X18);
-	jdi_dcs_write_seq_static(ctx, 0X32, 0X04);
-	jdi_dcs_write_seq_static(ctx, 0X34, 0X10);
-	jdi_dcs_write_seq_static(ctx, 0X35, 0X1F);
-	jdi_dcs_write_seq_static(ctx, 0X36, 0X1F);
-	jdi_dcs_write_seq_static(ctx, 0X4D, 0X1B);
-	jdi_dcs_write_seq_static(ctx, 0X4E, 0X4B);
-	jdi_dcs_write_seq_static(ctx, 0X4F, 0X4B);
-	jdi_dcs_write_seq_static(ctx, 0X53, 0X4B);
-	jdi_dcs_write_seq_static(ctx, 0X71, 0X30);
-	jdi_dcs_write_seq_static(ctx, 0X79, 0X11);
-	jdi_dcs_write_seq_static(ctx, 0X7A, 0X82);
-	jdi_dcs_write_seq_static(ctx, 0X7B, 0X96);
-	jdi_dcs_write_seq_static(ctx, 0X7D, 0X04);
-	jdi_dcs_write_seq_static(ctx, 0X80, 0X04);
-	jdi_dcs_write_seq_static(ctx, 0X81, 0X04);
-	jdi_dcs_write_seq_static(ctx, 0X82, 0X13);
-	jdi_dcs_write_seq_static(ctx, 0X84, 0X31);
-	jdi_dcs_write_seq_static(ctx, 0X85, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X86, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X87, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X90, 0X13);
-	jdi_dcs_write_seq_static(ctx, 0X92, 0X31);
-	jdi_dcs_write_seq_static(ctx, 0X93, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X94, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X95, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X9C, 0XF4);
-	jdi_dcs_write_seq_static(ctx, 0X9D, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0XA0, 0X16);
-	jdi_dcs_write_seq_static(ctx, 0XA2, 0X16);
-	jdi_dcs_write_seq_static(ctx, 0XA3, 0X02);
-	jdi_dcs_write_seq_static(ctx, 0XA4, 0X04);
-	jdi_dcs_write_seq_static(ctx, 0XA5, 0X04);
-	jdi_dcs_write_seq_static(ctx, 0XC6, 0XC0);
-	jdi_dcs_write_seq_static(ctx, 0XC9, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0XD9, 0X80);
-	jdi_dcs_write_seq_static(ctx, 0XE9, 0X02);
-
-	jdi_dcs_write_seq_static(ctx, 0XFF, 0X25);
-	//REGR 0XFE,0X25
-	jdi_dcs_write_seq_static(ctx, 0XFB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X18, 0X22);
-	jdi_dcs_write_seq_static(ctx, 0X19, 0XE4);
-	jdi_dcs_write_seq_static(ctx, 0X21, 0X40);
-	jdi_dcs_write_seq_static(ctx, 0X66, 0XD8);
-	jdi_dcs_write_seq_static(ctx, 0X68, 0X50);
-	jdi_dcs_write_seq_static(ctx, 0X69, 0X10);
-	jdi_dcs_write_seq_static(ctx, 0X6B, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X6D, 0X0D);
-	jdi_dcs_write_seq_static(ctx, 0X6E, 0X48);
-	jdi_dcs_write_seq_static(ctx, 0X72, 0X41);
-	jdi_dcs_write_seq_static(ctx, 0X73, 0X4A);
-	jdi_dcs_write_seq_static(ctx, 0X74, 0XD0);
-	jdi_dcs_write_seq_static(ctx, 0X77, 0X62);
-	jdi_dcs_write_seq_static(ctx, 0X79, 0X81);
-	jdi_dcs_write_seq_static(ctx, 0X7D, 0X40);
-	jdi_dcs_write_seq_static(ctx, 0X7E, 0X1D);
-	jdi_dcs_write_seq_static(ctx, 0X7F, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X80, 0X04);
-	jdi_dcs_write_seq_static(ctx, 0X84, 0X0D);
-	jdi_dcs_write_seq_static(ctx, 0XCF, 0X80);
-	jdi_dcs_write_seq_static(ctx, 0XD6, 0X80);
-	jdi_dcs_write_seq_static(ctx, 0XD7, 0X80);
-	jdi_dcs_write_seq_static(ctx, 0XEF, 0X20);
-	jdi_dcs_write_seq_static(ctx, 0XF0, 0X84);
-
-	jdi_dcs_write_seq_static(ctx, 0XFF, 0X26);
-	//REGR 0XFE,0X26
-	jdi_dcs_write_seq_static(ctx, 0XFB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X15, 0X04);
-	jdi_dcs_write_seq_static(ctx, 0X81, 0X16);
-	jdi_dcs_write_seq_static(ctx, 0X83, 0X03);
-	jdi_dcs_write_seq_static(ctx, 0X84, 0X03);
-	jdi_dcs_write_seq_static(ctx, 0X85, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X86, 0X03);
-	jdi_dcs_write_seq_static(ctx, 0X87, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X8A, 0X1A);
-	jdi_dcs_write_seq_static(ctx, 0X8B, 0X11);
-	jdi_dcs_write_seq_static(ctx, 0X8C, 0X24);
-	jdi_dcs_write_seq_static(ctx, 0X8E, 0X42);
-	jdi_dcs_write_seq_static(ctx, 0X8F, 0X11);
-	jdi_dcs_write_seq_static(ctx, 0X90, 0X11);
-	jdi_dcs_write_seq_static(ctx, 0X91, 0X11);
-	jdi_dcs_write_seq_static(ctx, 0X9A, 0X81);
-	jdi_dcs_write_seq_static(ctx, 0X9B, 0X03);
-	jdi_dcs_write_seq_static(ctx, 0X9C, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X9D, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X9E, 0X00);
-
-	jdi_dcs_write_seq_static(ctx, 0XFF, 0X27);
-	//REGR 0XFE,0X27
-	jdi_dcs_write_seq_static(ctx, 0XFB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X01, 0X60);
-	jdi_dcs_write_seq_static(ctx, 0X20, 0X81);
-	jdi_dcs_write_seq_static(ctx, 0X21, 0XEA);
-	jdi_dcs_write_seq_static(ctx, 0X25, 0X82);
-	jdi_dcs_write_seq_static(ctx, 0X26, 0X3F);
-	jdi_dcs_write_seq_static(ctx, 0X6E, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X6F, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X70, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X71, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X72, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X75, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X76, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X77, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0X7D, 0X09);
-	jdi_dcs_write_seq_static(ctx, 0X7E, 0X5F);
-	jdi_dcs_write_seq_static(ctx, 0X80, 0X23);
-	jdi_dcs_write_seq_static(ctx, 0X82, 0X09);
-	jdi_dcs_write_seq_static(ctx, 0X83, 0X5F);
-	jdi_dcs_write_seq_static(ctx, 0X88, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X89, 0X10);
-	jdi_dcs_write_seq_static(ctx, 0XA5, 0X10);
-	jdi_dcs_write_seq_static(ctx, 0XA6, 0X23);
-	jdi_dcs_write_seq_static(ctx, 0XA7, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0XB6, 0X40);
-	jdi_dcs_write_seq_static(ctx, 0XE3, 0X02);
-	jdi_dcs_write_seq_static(ctx, 0XE4, 0XE0);
-	jdi_dcs_write_seq_static(ctx, 0XE5, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0XE6, 0X33);
-	jdi_dcs_write_seq_static(ctx, 0XE9, 0X03);
-	jdi_dcs_write_seq_static(ctx, 0XEA, 0X5E);
-	jdi_dcs_write_seq_static(ctx, 0XEB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0XEC, 0X67);
-
-	jdi_dcs_write_seq_static(ctx, 0XFF, 0X2A);
-	//REGR 0XFE,0X2A
-	jdi_dcs_write_seq_static(ctx, 0XFB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X00, 0X91);
-	jdi_dcs_write_seq_static(ctx, 0X03, 0X20);
-	jdi_dcs_write_seq_static(ctx, 0X04, 0X73);
-	jdi_dcs_write_seq_static(ctx, 0X07, 0X64);
-	jdi_dcs_write_seq_static(ctx, 0X0A, 0X60);
-	jdi_dcs_write_seq_static(ctx, 0X0C, 0X06);
-	jdi_dcs_write_seq_static(ctx, 0X0D, 0X40);
-	jdi_dcs_write_seq_static(ctx, 0X0E, 0X02);
-	jdi_dcs_write_seq_static(ctx, 0X0F, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X11, 0X58);
-	jdi_dcs_write_seq_static(ctx, 0X15, 0X0E);
-	jdi_dcs_write_seq_static(ctx, 0X16, 0X79);
-	jdi_dcs_write_seq_static(ctx, 0X19, 0X0D);
-	jdi_dcs_write_seq_static(ctx, 0X1A, 0XF2);
-	jdi_dcs_write_seq_static(ctx, 0X1B, 0X14);
-	jdi_dcs_write_seq_static(ctx, 0X1D, 0X36);
-	jdi_dcs_write_seq_static(ctx, 0X1E, 0X55);
-	jdi_dcs_write_seq_static(ctx, 0X1F, 0X55);
-	jdi_dcs_write_seq_static(ctx, 0X20, 0X55);
-	jdi_dcs_write_seq_static(ctx, 0X28, 0X0A);
-	jdi_dcs_write_seq_static(ctx, 0X29, 0X0B);
-	jdi_dcs_write_seq_static(ctx, 0X2A, 0X4B);
-	jdi_dcs_write_seq_static(ctx, 0X2B, 0X05);
-	jdi_dcs_write_seq_static(ctx, 0X2D, 0X08);
-	jdi_dcs_write_seq_static(ctx, 0X2F, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X30, 0X47);
-	jdi_dcs_write_seq_static(ctx, 0X31, 0X23);
-	jdi_dcs_write_seq_static(ctx, 0X33, 0X25);
-	jdi_dcs_write_seq_static(ctx, 0X34, 0XFF);
-	jdi_dcs_write_seq_static(ctx, 0X35, 0X2C);
-	jdi_dcs_write_seq_static(ctx, 0X36, 0X75);
-	jdi_dcs_write_seq_static(ctx, 0X37, 0XFB);
-	jdi_dcs_write_seq_static(ctx, 0X38, 0X2E);
-	jdi_dcs_write_seq_static(ctx, 0X39, 0X73);
-	jdi_dcs_write_seq_static(ctx, 0X3A, 0X47);
-	jdi_dcs_write_seq_static(ctx, 0X46, 0X40);
-	jdi_dcs_write_seq_static(ctx, 0X47, 0X02);
-	jdi_dcs_write_seq_static(ctx, 0X4A, 0XF0);
-	jdi_dcs_write_seq_static(ctx, 0X4E, 0X0E);
-	jdi_dcs_write_seq_static(ctx, 0X4F, 0X8B);
-	jdi_dcs_write_seq_static(ctx, 0X52, 0X0E);
-	jdi_dcs_write_seq_static(ctx, 0X53, 0X04);
-	jdi_dcs_write_seq_static(ctx, 0X54, 0X14);
-	jdi_dcs_write_seq_static(ctx, 0X56, 0X36);
-	jdi_dcs_write_seq_static(ctx, 0X57, 0X80);
-	jdi_dcs_write_seq_static(ctx, 0X58, 0X80);
-	jdi_dcs_write_seq_static(ctx, 0X59, 0X80);
-	jdi_dcs_write_seq_static(ctx, 0X60, 0X80);
-	jdi_dcs_write_seq_static(ctx, 0X61, 0X0A);
-	jdi_dcs_write_seq_static(ctx, 0X62, 0X03);
-	jdi_dcs_write_seq_static(ctx, 0X63, 0XED);
-	jdi_dcs_write_seq_static(ctx, 0X65, 0X05);
-	jdi_dcs_write_seq_static(ctx, 0X66, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X67, 0X04);
-	jdi_dcs_write_seq_static(ctx, 0X68, 0X4D);
-	jdi_dcs_write_seq_static(ctx, 0X6A, 0X0A);
-	jdi_dcs_write_seq_static(ctx, 0X6B, 0XC9);
-	jdi_dcs_write_seq_static(ctx, 0X6C, 0X1F);
-	jdi_dcs_write_seq_static(ctx, 0X6D, 0XE3);
-	jdi_dcs_write_seq_static(ctx, 0X6E, 0XC6);
-	jdi_dcs_write_seq_static(ctx, 0X6F, 0X20);
-	jdi_dcs_write_seq_static(ctx, 0X70, 0XE2);
-	jdi_dcs_write_seq_static(ctx, 0X71, 0X04);
-	jdi_dcs_write_seq_static(ctx, 0X7A, 0X04);
-	jdi_dcs_write_seq_static(ctx, 0X7B, 0X40);
-	jdi_dcs_write_seq_static(ctx, 0X7C, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X7D, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X7F, 0XE0);
-	jdi_dcs_write_seq_static(ctx, 0X83, 0X0F);
-	jdi_dcs_write_seq_static(ctx, 0X84, 0XC5);
-	jdi_dcs_write_seq_static(ctx, 0X87, 0X0F);
-	jdi_dcs_write_seq_static(ctx, 0X88, 0X42);
-	jdi_dcs_write_seq_static(ctx, 0X89, 0X14);
-	jdi_dcs_write_seq_static(ctx, 0X8B, 0X36);
-	jdi_dcs_write_seq_static(ctx, 0X8C, 0X33);
-	jdi_dcs_write_seq_static(ctx, 0X8D, 0X33);
-	jdi_dcs_write_seq_static(ctx, 0X8E, 0X33);
-	jdi_dcs_write_seq_static(ctx, 0X95, 0X80);
-	jdi_dcs_write_seq_static(ctx, 0X96, 0XFD);
-	jdi_dcs_write_seq_static(ctx, 0X97, 0X19);
-	jdi_dcs_write_seq_static(ctx, 0X98, 0X4A);
-	jdi_dcs_write_seq_static(ctx, 0X99, 0X07);
-	jdi_dcs_write_seq_static(ctx, 0X9A, 0X0B);
-	jdi_dcs_write_seq_static(ctx, 0X9B, 0X03);
-	jdi_dcs_write_seq_static(ctx, 0X9C, 0X8B);
-	jdi_dcs_write_seq_static(ctx, 0X9D, 0XFF);
-	jdi_dcs_write_seq_static(ctx, 0X9F, 0X8B);
-	jdi_dcs_write_seq_static(ctx, 0XA0, 0XFF);
-	jdi_dcs_write_seq_static(ctx, 0XA2, 0X4E);
-	jdi_dcs_write_seq_static(ctx, 0XA3, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0XA4, 0XF8);
-	jdi_dcs_write_seq_static(ctx, 0XA5, 0X52);
-	jdi_dcs_write_seq_static(ctx, 0XA6, 0XFD);
-	jdi_dcs_write_seq_static(ctx, 0XA7, 0X4B);
-
-	jdi_dcs_write_seq_static(ctx, 0XFF, 0X2C);
-	//REGR 0XFE,0X2C
-	jdi_dcs_write_seq_static(ctx, 0XFB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X00, 0X02);
-	jdi_dcs_write_seq_static(ctx, 0X01, 0X02);
-	jdi_dcs_write_seq_static(ctx, 0X02, 0X02);
-	jdi_dcs_write_seq_static(ctx, 0X03, 0X16);
-	jdi_dcs_write_seq_static(ctx, 0X04, 0X16);
-	jdi_dcs_write_seq_static(ctx, 0X05, 0X16);
-	jdi_dcs_write_seq_static(ctx, 0X0D, 0X1F);
-	jdi_dcs_write_seq_static(ctx, 0X0E, 0X1F);
-	jdi_dcs_write_seq_static(ctx, 0X16, 0X1B);
-	jdi_dcs_write_seq_static(ctx, 0X17, 0X4B);
-	jdi_dcs_write_seq_static(ctx, 0X18, 0X4B);
-	jdi_dcs_write_seq_static(ctx, 0X19, 0X4B);
-	jdi_dcs_write_seq_static(ctx, 0X2A, 0X03);
-	jdi_dcs_write_seq_static(ctx, 0X4D, 0X16);
-	jdi_dcs_write_seq_static(ctx, 0X4E, 0X03);
-	jdi_dcs_write_seq_static(ctx, 0X53, 0X02);
-	jdi_dcs_write_seq_static(ctx, 0X54, 0X02);
-	jdi_dcs_write_seq_static(ctx, 0X55, 0X02);
-	jdi_dcs_write_seq_static(ctx, 0X56, 0X0B);
-	jdi_dcs_write_seq_static(ctx, 0X58, 0X0B);
-	jdi_dcs_write_seq_static(ctx, 0X59, 0X0B);
-	jdi_dcs_write_seq_static(ctx, 0X61, 0X19);
-	jdi_dcs_write_seq_static(ctx, 0X62, 0X19);
-	jdi_dcs_write_seq_static(ctx, 0X6A, 0X10);
-	jdi_dcs_write_seq_static(ctx, 0X6B, 0X2A);
-	jdi_dcs_write_seq_static(ctx, 0X6C, 0X2A);
-	jdi_dcs_write_seq_static(ctx, 0X6D, 0X2A);
-	jdi_dcs_write_seq_static(ctx, 0X7E, 0X03);
-	jdi_dcs_write_seq_static(ctx, 0X9D, 0X0B);
-	jdi_dcs_write_seq_static(ctx, 0X9E, 0X04);
-
-	jdi_dcs_write_seq_static(ctx, 0XFF, 0X20);
-	jdi_dcs_write_seq_static(ctx, 0XFB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0XB0, 0x00,0x00,0x00,0x1F,0x00,0x49,0x00,0x6B,0x00,0x85,0x00,0x9C,0x00,0xB1,0x00,0xC4);
-	jdi_dcs_write_seq_static(ctx, 0XB1, 0x00,0xD1,0x01,0x07,0x01,0x30,0x01,0x6E,0x01,0x9E,0x01,0xE5,0x02,0x1E,0x02,0x1F);
-	jdi_dcs_write_seq_static(ctx, 0XB2, 0x02,0x56,0x02,0x96,0x02,0xBF,0x02,0xF4,0x03,0x16,0x03,0x41,0x03,0x51,0x03,0x5F);
-	jdi_dcs_write_seq_static(ctx, 0XB3, 0x03,0x6E,0x03,0x82,0x03,0x98,0x03,0xAC,0x03,0xCC,0x03,0xD8,0x00,0x00);
-	jdi_dcs_write_seq_static(ctx, 0XB4, 0x00,0x00,0x00,0x1E,0x00,0x49,0x00,0x69,0x00,0x84,0x00,0x9B,0x00,0xAF,0x00,0xC1);
-	jdi_dcs_write_seq_static(ctx, 0XB5, 0x00,0xD2,0x01,0x07,0x01,0x30,0x01,0x6E,0x01,0x9D,0x01,0xE5,0x02,0x1F,0x02,0x20);
-	jdi_dcs_write_seq_static(ctx, 0XB6, 0x02,0x57,0x02,0x96,0x02,0xBF,0x02,0xF3,0x03,0x16,0x03,0x3F,0x03,0x4F,0x03,0x5D);
-	jdi_dcs_write_seq_static(ctx, 0XB7, 0x03,0x6D,0x03,0x81,0x03,0x98,0x03,0xAC,0x03,0xCC,0x03,0xD8,0x00,0x00);
-	jdi_dcs_write_seq_static(ctx, 0XB8, 0x00,0x00,0x00,0x20,0x00,0x48,0x00,0x6A,0x00,0x86,0x00,0x9F,0x00,0xB5,0x00,0xC6);
-	jdi_dcs_write_seq_static(ctx, 0XB9, 0x00,0xD8,0x01,0x0D,0x01,0x36,0x01,0x73,0x01,0xA1,0x01,0xE8,0x02,0x21,0x02,0x22);
-	jdi_dcs_write_seq_static(ctx, 0XBA, 0x02,0x58,0x02,0x98,0x02,0xC1,0x02,0xF7,0x03,0x1B,0x03,0x41,0x03,0x54,0x03,0x66);
-	jdi_dcs_write_seq_static(ctx, 0XBB, 0x03,0x6E,0x03,0x82,0x03,0x98,0x03,0xAC,0x03,0xD0,0x03,0xD8,0x00,0x00);
-
-	jdi_dcs_write_seq_static(ctx, 0XFF, 0X21);
-	jdi_dcs_write_seq_static(ctx, 0XFB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0XB0, 0x00,0x00,0x00,0x1F,0x00,0x49,0x00,0x6B,0x00,0x85,0x00,0x9C,0x00,0xB1,0x00,0xC4);
-	jdi_dcs_write_seq_static(ctx, 0XB1, 0x00,0xD1,0x01,0x07,0x01,0x30,0x01,0x6E,0x01,0x9E,0x01,0xE5,0x02,0x1E,0x02,0x1F);
-	jdi_dcs_write_seq_static(ctx, 0XB2, 0x02,0x56,0x02,0x96,0x02,0xBF,0x02,0xF4,0x03,0x16,0x03,0x41,0x03,0x51,0x03,0x5F);
-	jdi_dcs_write_seq_static(ctx, 0XB3, 0x03,0x6E,0x03,0x82,0x03,0x98,0x03,0xAC,0x03,0xCC,0x03,0xD8,0x00,0x00);
-	jdi_dcs_write_seq_static(ctx, 0XB4, 0x00,0x00,0x00,0x1E,0x00,0x49,0x00,0x69,0x00,0x84,0x00,0x9B,0x00,0xAF,0x00,0xC1);
-	jdi_dcs_write_seq_static(ctx, 0XB5, 0x00,0xD2,0x01,0x07,0x01,0x30,0x01,0x6E,0x01,0x9D,0x01,0xE5,0x02,0x1F,0x02,0x20);
-	jdi_dcs_write_seq_static(ctx, 0XB6, 0x02,0x57,0x02,0x96,0x02,0xBF,0x02,0xF3,0x03,0x16,0x03,0x3F,0x03,0x4F,0x03,0x5D);
-	jdi_dcs_write_seq_static(ctx, 0XB7, 0x03,0x6D,0x03,0x81,0x03,0x98,0x03,0xAC,0x03,0xCC,0x03,0xD8,0x00,0x00);
-	jdi_dcs_write_seq_static(ctx, 0XB8, 0x00,0x00,0x00,0x20,0x00,0x48,0x00,0x6A,0x00,0x86,0x00,0x9F,0x00,0xB5,0x00,0xC6);
-	jdi_dcs_write_seq_static(ctx, 0XB9, 0x00,0xD8,0x01,0x0D,0x01,0x36,0x01,0x73,0x01,0xA1,0x01,0xE8,0x02,0x21,0x02,0x22);
-	jdi_dcs_write_seq_static(ctx, 0XBA, 0x02,0x58,0x02,0x98,0x02,0xC1,0x02,0xF7,0x03,0x1B,0x03,0x41,0x03,0x54,0x03,0x66);
-	jdi_dcs_write_seq_static(ctx, 0XBB, 0x03,0x6E,0x03,0x82,0x03,0x98,0x03,0xAC,0x03,0xD0,0x03,0xD8,0x00,0x00);
-
-	jdi_dcs_write_seq_static(ctx, 0XFF, 0XE0);
-	//REGR 0XFE,0XE0
-	jdi_dcs_write_seq_static(ctx, 0XFB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X35, 0X82);
-
-	jdi_dcs_write_seq_static(ctx, 0XFF, 0XF0);
-	//REGR 0XFE,0XF0
-	jdi_dcs_write_seq_static(ctx, 0XFB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X5A, 0X00);
-	jdi_dcs_write_seq_static(ctx, 0XD2, 0X52);
-	jdi_dcs_write_seq_static(ctx, 0X9F, 0X12);
-
-	jdi_dcs_write_seq_static(ctx, 0XFF, 0XD0);
-	//REGR 0XFE,0XD0
-	jdi_dcs_write_seq_static(ctx, 0XFB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X53, 0X22);
-	jdi_dcs_write_seq_static(ctx, 0X54, 0X02);
-
-	jdi_dcs_write_seq_static(ctx, 0XFF, 0XC0);
-	//CCMON
-	jdi_dcs_write_seq_static(ctx, 0XFB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X9C, 0X11);
-	jdi_dcs_write_seq_static(ctx, 0X9D, 0X11);
-	//CCMOFF
-	//CCMRUN
-	jdi_dcs_write_seq_static(ctx, 0XFF, 0X10);
-	jdi_dcs_write_seq_static(ctx, 0XFB, 0X01);
-	jdi_dcs_write_seq_static(ctx, 0X35, 0X01);//TE Enable
-	jdi_dcs_write_seq_static(ctx, 0X51, 0XFF);//Write_Display_Brightness
-	jdi_dcs_write_seq_static(ctx, 0X53, 0X0C);//Write_CTRL_Display
-	jdi_dcs_write_seq_static(ctx, 0X55, 0X00);//Write CABC
-
+	jdi_dcs_write_seq_static(ctx, 0x00,0x00); 
+	jdi_dcs_write_seq_static(ctx, 0xFF,0xFF,0xFF,0xFF);		
 	jdi_dcs_write_seq_static(ctx, 0x11);
+	msleep(120);
 	jdi_dcs_write_seq_static(ctx, 0x29);
+	msleep(20);
+//	jdi_dcs_write_seq_static(ctx, 0xB7,0x59,0x02);
+//	jdi_dcs_write_seq_static(ctx, 0xFF,0xFF,0xFF);
 
-	jdi_dcs_write_seq(ctx, bl_tb0[0], bl_tb0[1]);
-
-	pr_info("%s-\n", __func__);
+	printk("ft8722 init end\n");
 }
 
 static int jdi_disable(struct drm_panel *panel)
@@ -679,7 +523,7 @@ static int jdi_unprepare(struct drm_panel *panel)
 
 	struct jdi *ctx = panel_to_jdi(panel);
 
-	pr_info("%s\n", __func__);
+	printk("ft8722 jdi_unprepare\n");
 
 	if (!ctx->prepared)
 		return 0;
@@ -719,7 +563,7 @@ static int jdi_prepare(struct drm_panel *panel)
 	pr_info("%s+\n", __func__);
 	if (ctx->prepared)
 		return 0;
-
+  	printk("jdi_prepare  ft8722 resume \n");
 	// lcd reset H -> L -> L
 	ctx->reset_gpio = devm_gpiod_get(ctx->dev, "reset", GPIOD_OUT_HIGH);
 	gpiod_set_value(ctx->reset_gpio, 1);
@@ -729,6 +573,7 @@ static int jdi_prepare(struct drm_panel *panel)
 	gpiod_set_value(ctx->reset_gpio, 1);
 	devm_gpiod_put(ctx->dev, ctx->reset_gpio);
 	// end
+	printk("jdi_prepare  ft8722 resume111 \n");	
 	if (ctx->gate_ic == 0) {
 		ctx->bias_pos =
 			devm_gpiod_get_index(ctx->dev, "bias", 0, GPIOD_OUT_HIGH);
@@ -741,12 +586,13 @@ static int jdi_prepare(struct drm_panel *panel)
 		gpiod_set_value(ctx->bias_neg, 1);
 		devm_gpiod_put(ctx->dev, ctx->bias_neg);
 	}
+ 	printk("jdi_prepare  ft8722 resume222 \n");	
 #ifndef BYPASSI2C
-	_lcm_i2c_write_bytes(0x0, 0xf);
-	_lcm_i2c_write_bytes(0x1, 0xf);
+	_lcm_i2c_write_bytes(0x0, 0x12);
+	_lcm_i2c_write_bytes(0x1, 0x12);
 #endif
 	jdi_panel_init(ctx);
-
+ 	printk("jdi_prepare  ft8722 resume444 \n");
 	ret = ctx->error;
 	if (ret < 0)
 		jdi_unprepare(panel);
@@ -760,7 +606,7 @@ static int jdi_prepare(struct drm_panel *panel)
 	// shifan@bsp.tp 20191226 add for loading tp fw when screen lighting on
 	lcd_queue_load_tp_fw();
 #endif
-
+ 	printk("jdi_prepare  ft8722 resume555 \n");
 	pr_info("%s-\n", __func__);
 	return ret;
 }
@@ -781,81 +627,105 @@ static int jdi_enable(struct drm_panel *panel)
 
 	return 0;
 }
+
+#define HSA (8)
+#define HFP (40)
+#define HBP (32)
+
+#define VSA (4)
+#define VFP (2500) //2500
+#define VBP (30)
+
+#define HAC (1080)
+#define VAC (2408)
+
+#define VFP2 (853)//853
+#define PCLK_IN_KHZ \
+    ((HAC+HFP+HSA+HBP)*(VAC+VFP+VSA+VBP)*(60)/1000) //2500
+#define PCLK2_IN_KHZ \
+    ((HAC+HFP+HSA+HBP)*(VAC+VFP2+VSA+VBP)*(90)/1000) //853
+	
 #if HFP_SUPPORT
 static const struct drm_display_mode default_mode = {
-	.clock = 443290,
-	.hdisplay = 1080,
-	.hsync_start = 1080 + 76,//HFP
-	.hsync_end = 1080 + 76 + 12,//HSA
-	.htotal = 1080 + 76 + 12 + 80,//HBP
-	.vdisplay = 2400,
-	.vsync_start = 2400 + 540,//VFP
-	.vsync_end = 2400 + 540 + 10,//VSA
-	.vtotal = 2400 + 540 + 10 + 10,//VBP
+	
+	.clock = PCLK_IN_KHZ,
+	.hdisplay = HAC,
+	.hsync_start = HAC + HFP,
+	.hsync_end = HAC + HFP + HSA,
+	.htotal = HAC + HFP + HSA + HBP,//1140
+	.vdisplay = VAC,
+	.vsync_start = VAC + VFP,
+	.vsync_end = VAC + VFP + VSA,
+	.vtotal = VAC + VFP + VSA + VBP,//2199
+	//.vrefresh = 60,//120
 };
 
 static const struct drm_display_mode performance_mode = {
-	.clock = 443290,
-	.hdisplay = 1080,
-	.hsync_start = 1080 + 76,//HFP
-	.hsync_end = 1080 + 76 + 12,//HSA
-	.htotal = 1080 + 76 + 12 + 80,//HBP
-	.vdisplay = 2400,
-	.vsync_start = 2400 + 540,//VFP
-	.vsync_end = 2400 + 540 + 10,//VSA
-	.vtotal = 2400 + 540 + 10 + 10,//VBP
+	.clock = PCLK_IN_KHZ,
+	.hdisplay = HAC,
+	.hsync_start = HAC + HFP,
+	.hsync_end = HAC + HFP + HSA,
+	.htotal = HAC + HFP + HSA + HBP,//1140
+	.vdisplay = VAC,
+	.vsync_start = VAC + VFP,
+	.vsync_end = VAC + VFP + VSA,
+	.vtotal = VAC + VFP + VSA + VBP,//2199
+	//.vrefresh = 60,//120
 };
 #else
 static const struct drm_display_mode default_mode = {
-	.clock = 443290,
-	.hdisplay = 1080,
-	.hsync_start = 1080 + 76,//HFP
-	.hsync_end = 1080 + 76 + 12,//HSA
-	.htotal = 1080 + 76 + 12 + 80,//HBP
-	.vdisplay = 2400,
-	.vsync_start = 2400 + 3524,//VFP
-	.vsync_end = 2400 + 3524 + 10,//VSA
-	.vtotal = 2400 + 3524 + 10 + 10,//VBP 4948
+	.clock = PCLK_IN_KHZ,
+	.hdisplay = HAC,
+	.hsync_start = HAC + HFP,
+	.hsync_end = HAC + HFP + HSA,
+	.htotal = HAC + HFP + HSA + HBP,//1140
+	.vdisplay = VAC,
+	.vsync_start = VAC + VFP,
+	.vsync_end = VAC + VFP + VSA,
+	.vtotal = VAC + VFP + VSA + VBP,//2199
+	//.vrefresh = 60,//120
 };
 
 static const struct drm_display_mode performance_mode = {
-	.clock = 443290,
-	.hdisplay = 1080,
-	.hsync_start = 1080 + 76,//HFP
-	.hsync_end = 1080 + 76 + 12,//HSA
-	.htotal = 1080 + 76 + 12 + 80,//HBP
-	.vdisplay = 2400,
-	.vsync_start = 2400 + 1542,//VFP
-	.vsync_end = 2400 + 1542 + 10,//VSA
-	.vtotal = 2400 + 1542 + 10 + 10,//VBP
+	.clock = PCLK_IN_KHZ,
+	.hdisplay = HAC,
+	.hsync_start = HAC + HFP,
+	.hsync_end = HAC + HFP + HSA,
+	.htotal = HAC + HFP + HSA + HBP,//1140
+	.vdisplay = VAC,
+	.vsync_start = VAC + VFP,
+	.vsync_end = VAC + VFP + VSA,
+	.vtotal = VAC + VFP + VSA + VBP,//2199
+	//.vrefresh = 60,//120
 };
 #endif
 static const struct drm_display_mode performance_mode1 = {
-	.clock = 437299,
-	.hdisplay = 1080,
-	.hsync_start = 1080 + 76,//HFP
-	.hsync_end = 1080 + 76 + 12,//HSA
-	.htotal = 1080 + 76 + 12 + 80,//HBP 1248
-	.vdisplay = 2400,
-	.vsync_start = 2400 + 500,//VFP
-	.vsync_end = 2400 + 500 + 10,//VSA
-	.vtotal = 2400 + 500 + 10 + 10,//VBP 2920
+	.clock = PCLK_IN_KHZ,
+	.hdisplay = HAC,
+	.hsync_start = HAC + HFP,
+	.hsync_end = HAC + HFP + HSA,
+	.htotal = HAC + HFP + HSA + HBP,//1140
+	.vdisplay = VAC,
+	.vsync_start = VAC + VFP,
+	.vsync_end = VAC + VFP + VSA,
+	.vtotal = VAC + VFP + VSA + VBP,//2199
+	//.vrefresh = 60,//120
 };
 
 
 #if defined(CONFIG_MTK_PANEL_EXT)
 static struct mtk_panel_params ext_params = {
-	.pll_clk = 422,
+	.pll_clk = 700,
 	.vfp_low_power = 5500,//45hz
 	.cust_esd_check = 0,
-	.esd_check_enable = 1,
+	.esd_check_enable = 0,
 	.lcm_esd_check_table[0] = {
 		.cmd = 0x0A, .count = 1, .para_list[0] = 0x9C,
 	},
 	.is_cphy = 1,
 	.output_mode = MTK_PANEL_DSC_SINGLE_PORT,
 	.dsc_params = {
-		.enable = 1,
+		.enable = 0,
 		.ver = 17,
 		.slice_mode = 1,
 		.rgb_swap = 0,
@@ -865,7 +735,7 @@ static struct mtk_panel_params ext_params = {
 		.dsc_line_buf_depth = 11,
 		.bp_enable = 1,
 		.bit_per_pixel = 128,
-		.pic_height = 2400,
+		.pic_height = 2408,
 		.pic_width = 1080,
 		.slice_height = 20,
 		.slice_width = 540,
@@ -917,10 +787,10 @@ static struct mtk_panel_params ext_params = {
 };
 
 static struct mtk_panel_params ext_params_90hz = {
-	.pll_clk = 422,
+	.pll_clk = 700,
 	.vfp_low_power = 3524,//60hz
 	.cust_esd_check = 0,
-	.esd_check_enable = 1,
+	.esd_check_enable = 0,
 	.lcm_esd_check_table[0] = {
 
 		.cmd = 0x0A, .count = 1, .para_list[0] = 0x9C,
@@ -928,7 +798,7 @@ static struct mtk_panel_params ext_params_90hz = {
 	.is_cphy = 1,
 	.output_mode = MTK_PANEL_DSC_SINGLE_PORT,
 	.dsc_params = {
-		.enable = 1,
+		.enable = 0,
 		.ver = 17,
 		.slice_mode = 1,
 		.rgb_swap = 0,
@@ -938,7 +808,7 @@ static struct mtk_panel_params ext_params_90hz = {
 		.dsc_line_buf_depth = 11,
 		.bp_enable = 1,
 		.bit_per_pixel = 128,
-		.pic_height = 2400,
+		.pic_height = 2408,
 		.pic_width = 1080,
 		.slice_height = 20,
 		.slice_width = 540,
@@ -990,17 +860,17 @@ static struct mtk_panel_params ext_params_90hz = {
 };
 
 static struct mtk_panel_params ext_params_120hz = {
-	.pll_clk = 422,
+	.pll_clk = 700,
 	.vfp_low_power = 3524,//idle 60hz
 	.cust_esd_check = 0,
-	.esd_check_enable = 1,
+	.esd_check_enable = 0,
 	.lcm_esd_check_table[0] = {
 		.cmd = 0x0A, .count = 1, .para_list[0] = 0x9C,
 	},
 	.is_cphy = 1,
 	.output_mode = MTK_PANEL_DSC_SINGLE_PORT,
 	.dsc_params = {
-		.enable = 1,
+		.enable = 0,
 		.ver = 17,
 		.slice_mode = 1,
 		.rgb_swap = 0,
@@ -1010,7 +880,7 @@ static struct mtk_panel_params ext_params_120hz = {
 		.dsc_line_buf_depth = 11,
 		.bp_enable = 1,
 		.bit_per_pixel = 128,
-		.pic_height = 2400,
+		.pic_height = 2408,
 		.pic_width = 1080,
 		.slice_height = 20,
 		.slice_width = 540,
@@ -1108,22 +978,20 @@ static int mtk_panel_ext_param_set(struct drm_panel *panel,
 	int ret = 0;
 	struct drm_display_mode *m = get_mode_by_id_hfp(connector, mode);
 
-	if (!m)  {
-		pr_err("%s:%d invalid display_mode\n", __func__, __LINE__);
-		return ret;
-	}
-
 	if (drm_mode_vrefresh(m) == 60) {
+printk("drm_mode_vrefresh  60hz\n");
 		ext->params = &ext_params;
 #if HFP_SUPPORT
 		current_fps = 60;
 #endif
 	} else if (drm_mode_vrefresh(m)== 90) {
+printk("drm_mode_vrefresh  90hz\n");		
 		ext->params = &ext_params_90hz;
 #if HFP_SUPPORT
 		current_fps = 90;
 #endif
 	} else if (drm_mode_vrefresh(m) == 120) {
+printk("drm_mode_vrefresh  120hz\n");		
 		ext->params = &ext_params_120hz;
 #if HFP_SUPPORT
 		current_fps = 120;
@@ -1138,7 +1006,7 @@ static void mode_switch_to_120(struct drm_panel *panel)
 {
 	struct jdi *ctx = panel_to_jdi(panel);
 
-	pr_info("%s\n", __func__);
+	printk("mode_switch_to_120\n");
 
 	jdi_dcs_write_seq_static(ctx, 0xFF, 0x25);
 	jdi_dcs_write_seq_static(ctx, 0xFB, 0x01);
@@ -1153,7 +1021,7 @@ static void mode_switch_to_90(struct drm_panel *panel)
 {
 	struct jdi *ctx = panel_to_jdi(panel);
 
-	pr_info("%s\n", __func__);
+	printk("mode_switch_to_90\n");
 
 	jdi_dcs_write_seq_static(ctx, 0xFF, 0x25);
 	jdi_dcs_write_seq_static(ctx, 0xFB, 0x01);
@@ -1166,7 +1034,8 @@ static void mode_switch_to_90(struct drm_panel *panel)
 static void mode_switch_to_60(struct drm_panel *panel)
 {
 	struct jdi *ctx = panel_to_jdi(panel);
-
+    printk("mode_switch_to_60\n");
+	
 	jdi_dcs_write_seq_static(ctx, 0xFF, 0x25);
 	jdi_dcs_write_seq_static(ctx, 0xFB, 0x01);
 	jdi_dcs_write_seq_static(ctx, 0x18, 0x21);
@@ -1181,12 +1050,7 @@ static int mode_switch(struct drm_panel *panel,
 	int ret = 0;
 	struct drm_display_mode *m = get_mode_by_id_hfp(connector, dst_mode);
 
-	if (!m) {
-		pr_err("%s:%d invalid display_mode\n", __func__, __LINE__);
-		return ret;
-	}
-
-	pr_info("%s cur_mode = %d dst_mode %d\n", __func__, cur_mode, dst_mode);
+	printk(" mode_switch cur_mode = %d dst_mode %d\n", cur_mode, dst_mode);
 
 	if (drm_mode_vrefresh(m) == 60) { /* 60 switch to 120 */
 		mode_switch_to_60(panel);
@@ -1316,13 +1180,13 @@ static int jdi_probe(struct mipi_dsi_device *dsi)
 	unsigned int value;
 	int ret;
 
-	pr_info("%s+\n", __func__);
+	printk("jdi_probe  ft8722 \n");
 	ctx = devm_kzalloc(dev, sizeof(struct jdi), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
 	mipi_dsi_set_drvdata(dsi, ctx);
-
+	printk("jdi_probe  ft8722 111 \n");
 	ctx->dev = dev;
 	dsi->lanes = 3;
 	dsi->format = MIPI_DSI_FMT_RGB888;
@@ -1344,7 +1208,7 @@ static int jdi_probe(struct mipi_dsi_device *dsi)
 		if (!ctx->backlight)
 			return -EPROBE_DEFER;
 	}
-
+	printk("jdi_probe  ft8722 222 \n");
 	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(ctx->reset_gpio)) {
 		dev_info(dev, "cannot get reset-gpios %ld\n",
@@ -1352,6 +1216,7 @@ static int jdi_probe(struct mipi_dsi_device *dsi)
 		return PTR_ERR(ctx->reset_gpio);
 	}
 	devm_gpiod_put(dev, ctx->reset_gpio);
+	printk("jdi_probe  ft8722 333 \n");
 	if (ctx->gate_ic == 0) {
 		ctx->bias_pos = devm_gpiod_get_index(dev, "bias", 0, GPIOD_OUT_HIGH);
 		if (IS_ERR(ctx->bias_pos)) {
@@ -1360,7 +1225,7 @@ static int jdi_probe(struct mipi_dsi_device *dsi)
 			return PTR_ERR(ctx->bias_pos);
 		}
 		devm_gpiod_put(dev, ctx->bias_pos);
-
+	printk("jdi_probe  ft8722 444 \n");
 		ctx->bias_neg = devm_gpiod_get_index(dev, "bias", 1, GPIOD_OUT_HIGH);
 		if (IS_ERR(ctx->bias_neg)) {
 			dev_info(dev, "cannot get bias-gpios 1 %ld\n",
@@ -1369,6 +1234,7 @@ static int jdi_probe(struct mipi_dsi_device *dsi)
 		}
 		devm_gpiod_put(dev, ctx->bias_neg);
 	}
+	printk("jdi_probe  ft8722 555 \n");	
 	ctx->prepared = true;
 	ctx->enabled = true;
 	drm_panel_init(&ctx->panel, dev, &jdi_drm_funcs, DRM_MODE_CONNECTOR_DSI);
@@ -1387,7 +1253,7 @@ static int jdi_probe(struct mipi_dsi_device *dsi)
 
 #endif
 
-	pr_info("%s- jdi,nt36672e,cphy,vdo,hfp\n", __func__);
+	printk("%s- jdi,nt36672e,cphy,vdo,hfp\n", __func__);
 
 	return ret;
 }

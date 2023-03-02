@@ -76,6 +76,9 @@ obj-$(CONFIG_DRM_PANEL_TIANMA_R66451_CMD_120HZ) += panel-tianma-r66451-cmd-120hz
 obj-$(CONFIG_DRM_PANEL_TIANMA_R66451_CMD_120HZ_WA) += panel-tianma-r66451-cmd-120hz-wa.o
 obj-$(CONFIG_DRM_PANEL_TIANMA_NT36672E_VDO_120HZ_HFP) += panel-tianma-nt36672e-vdo-120hz-hfp.o
 obj-$(CONFIG_DRM_PANEL_ALPHA_JDI_NT36672E_CPHY_VDO) += panel-alpha-jdi-nt36672e-cphy-vdo.o
+#prize add by lipengpeng 20220811 start 
+obj-$(CONFIG_DRM_PANEL_ALPHA_JDI_NT36672EGMS_CPHY_VDO) += panel-alpha-jdi-nt36672egms-cphy-vdo.o
+#prize add by lipengpeng 20220811 end
 obj-$(CONFIG_DRM_PANEL_ALPHA_JDI_NT36672E_VDO_120HZ) += panel-alpha-jdi-nt36672e-vdo-120hz.o
 obj-$(CONFIG_DRM_PANEL_ALPHA_JDI_NT36672E_VDO_144HZ) += panel-alpha-jdi-nt36672e-vdo-144hz.o
 obj-$(CONFIG_DRM_PANEL_ALPHA_JDI_NT36672E_VDO_60HZ) += panel-alpha-jdi-nt36672e-vdo-60hz.o
@@ -86,7 +89,16 @@ obj-$(CONFIG_DRM_PANEL_SAMSUNG_S68FC01_VDO_AOD) += panel-samsung-s68fc01-vdo-aod
 obj-$(CONFIG_DRM_PANEL_ALPHA_SAMSUNG_S6E3HAE_CMD_120HZ) += panel-alpha-samsung-s6e3hae-wqhd-dphy-cmd-120hz.o
 obj-$(CONFIG_DRM_PANEL_TIANMA_NT36672C_CPHY_VDO_90HZ_RT4801) += panel-tianma-nt36672c-cphy-vdo-90hz-rt4801.o
 obj-$(CONFIG_DRM_PANEL_NT37801_MSYNC2_RTE) += panel-nt37801-msync2-rte.o
-
+#prize hjw  for panel 20220606 start
+obj-$(CONFIG_DRM_PANEL_SHARP_R63417_CMD) += panel-sharp-r63417-cmd.o
+obj-$(CONFIG_DRM_PANEL_TRULY6517_ILI9882N_VDO)+= panel-truly6517-ili9882n-vdo.o
+obj-$(CONFIG_DRM_PANEL_TRULY6517_ILI9881H_VDO)+= panel-truly6517-ili9881h-vdo.o
+obj-$(CONFIG_DRM_PANEL_TRULY6517_ILI9882Q_VDO)+= panel-truly6517-ili9882q-vdo.o
+obj-$(CONFIG_DRM_PANEL_FHD_HX8399C_VDO)+= panel-fhd-hx8399c-vdo.o
+obj-$(CONFIG_DRM_PANEL_CSOT_FT8756_VDO) += panel-csot-ft8756-vdo.o
+obj-$(CONFIG_DRM_PANEL_CSOT_FT8756_VDO_WCL) += panel-csot-ft8756-vdo-wcl.o
+obj-$(CONFIG_DRM_PANEL_CSOT_FT8756_VDO_XBD) += panel-csot-ft8756-vdo-xbd.o
+#prize hjw  for panel 20220606 end
 mediatek-drm-gateic-y := mtk_drm_panel_i2c.o \
 		  mtk_drm_gateic_rt4801h.o \
 		  mtk_drm_gateic_rt4831a.o \

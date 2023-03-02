@@ -23,6 +23,10 @@ struct mtk_spk_i2c_ctrl {
 #define MTK_SPK_RICHTEK_RT5512_STR "MTK_SPK_MEDIATEK_RT5512"
 #define MTK_SPK_GOODIX_TFA98XX_STR "MTK_SPK_GOODIX_TFAXXXX"
 
+
+//prize add by lipengpeng 20220607 start
+#define MTK_SPK_AWINIC_AW883XX_STR "MTK_SPK_AWINIC_AW883XX"
+//prize add by lipengpeng 20220607 end
 #define MTK_SPK_I2S_0_STR "MTK_SPK_I2S_0"
 #define MTK_SPK_I2S_1_STR "MTK_SPK_I2S_1"
 #define MTK_SPK_I2S_2_STR "MTK_SPK_I2S_2"
@@ -40,6 +44,10 @@ enum mtk_spk_type {
 	MTK_SPK_MEDIATEK_MT6660,
 	MTK_SPK_GOODIX_TFA98XX,
 	MTK_SPK_MEDIATEK_RT5512,
+
+//prize add by lipengpeng 20220607 start
+	MTK_SPK_AWINIC_AW883XX,
+//prize add by lipengpeng 20220607 end
 	MTK_SPK_TYPE_NUM
 };
 

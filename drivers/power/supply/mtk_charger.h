@@ -13,6 +13,11 @@
 #include <linux/power_supply.h>
 #include "mtk_smartcharging.h"
 
+#if IS_ENABLED(CONFIG_DRM_MEDIATEK)
+#include "../../gpu/drm/mediatek/mediatek_v2/mtk_panel_ext.h"
+#include "../../gpu/drm/mediatek/mediatek_v2/mtk_disp_notify.h"
+#endif
+
 #define CHARGING_INTERVAL 10
 #define CHARGING_FULL_INTERVAL 20
 
@@ -142,7 +147,16 @@ enum sw_jeita_state_enum {
 	TEMP_T3_TO_T4,
 	TEMP_ABOVE_T4
 };
+/*
+enum sw_chg_state {
+	STATE_BELOW_T0 = 0,
+	STATE_T0_TO_T1,
+	STATE_T1_TO_T2,
+	STATE_T2_TO_T3,
+	STATE_ABOVE_T3,
+};
 
+*/
 struct sw_jeita_data {
 	int sm;
 	int pre_sm;
@@ -258,6 +272,11 @@ struct mtk_charger {
 	struct power_supply_desc psy_dvchg_desc2;
 	struct power_supply_config psy_dvchg_cfg2;
 	struct power_supply *psy_dvchg2;
+	
+	struct power_supply_desc psy_bms_desc;
+	struct power_supply_config psy_bms_cfg;
+	struct power_supply *psy_bms;
+	
 
 	struct power_supply  *chg_psy;
 	struct power_supply  *bat_psy;
@@ -375,6 +394,13 @@ struct mtk_charger {
 	bool force_disable_pp[CHG2_SETTING + 1];
 	bool enable_pp[CHG2_SETTING + 1];
 	struct mutex pp_lock[CHG2_SETTING + 1];
+	/*pd state psy*/
+	struct power_supply *pdpe_psy;
+	//bool cmd_discharging;
+#if IS_ENABLED(CONFIG_DRM_MEDIATEK)
+	struct notifier_block disp_notifier;
+#endif
+	//enum sw_chg_state wireless_chg_state;
 };
 
 static inline int mtk_chg_alg_notify_call(struct mtk_charger *info,
@@ -422,5 +448,17 @@ extern void _wake_up_charger(struct mtk_charger *info);
 /* functions for other */
 extern int mtk_chg_enable_vbus_ovp(bool enable);
 
+//prize add by lipengpeng 20220613 start 
+#if IS_ENABLED(CONFIG_PRIZE_MT5725_SUPPORT_15W)
+extern int set_otg_gpio(int en);
+extern int turn_off_5725(int en);
+extern int get_MT5725_status(void);
+#endif
+
+#if IS_ENABLED(CONFIG_PRIZE_CHARGE_CTRL_POLICY)
+extern bool g_charge_is_screen_on;
+#endif
+
+//prize add by lipengpeng 20220613 end 
 
 #endif /* __MTK_CHARGER_H */

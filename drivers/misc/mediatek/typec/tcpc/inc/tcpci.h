@@ -24,7 +24,10 @@
 #if IS_ENABLED(CONFIG_USB_POWER_DELIVERY)
 #include "pd_core.h"
 #endif /* CONFIG_USB_POWER_DELIVERY */
-
+//prize add by lipengpeng 20220530 start
+#define SC2150A_DID			0x0000
+#define SC2150B_DID			0x0001
+//prize add by lipengpeng 20220530 end
 #define PE_STATE_FULL_NAME	0
 
 #define TCPC_LOW_RP_DUTY		(100)		/* 10 % */
@@ -63,6 +66,9 @@ static inline int tcpci_check_vbus_valid(struct tcpc_device *tcpc)
 
 int tcpci_check_vbus_valid_from_ic(struct tcpc_device *tcpc);
 int tcpci_check_vsafe0v(struct tcpc_device *tcpc, bool detect_en);
+//prize add by lipengpeng 20220530 start
+int tcpci_get_chip_id(struct tcpc_device *tcpc, uint32_t *chip_id);
+//prize add by lipengpeng 20220530 end
 int tcpci_alert_status_clear(struct tcpc_device *tcpc, uint32_t mask);
 int tcpci_fault_status_clear(struct tcpc_device *tcpc, uint8_t status);
 int tcpci_set_alert_mask(struct tcpc_device *tcpc, uint32_t mask);

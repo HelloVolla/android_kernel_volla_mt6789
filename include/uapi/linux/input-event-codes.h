@@ -337,6 +337,9 @@
 
 #define KEY_MICMUTE		248	/* Mute / unmute the microphone */
 
+//prize add by lipengpeng 20220718 start 
+#define KEY_PPT   301
+//prize add by lipengpeng 20220718 end 
 /* Code 255 is reserved for special needs of AT keyboard driver */
 
 #define BTN_MISC		0x100

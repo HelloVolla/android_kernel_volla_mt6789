@@ -6,10 +6,15 @@
 #include <linux/delay.h>
 #include <linux/cpu.h>
 #include <linux/power_supply.h>
+#include <linux/delay.h>
 
 #include "inc/tcpci.h"
 #include "inc/tcpci_typec.h"
 #include "inc/tcpci_timer.h"
+
+//prize add by lipengpeng 20220613 start
+#include "../../../../power/supply/sm5602_fg.h"
+//prize add by lipengpeng 20220613 end
 
 #if (CONFIG_TYPEC_CAP_TRY_SOURCE || CONFIG_TYPEC_CAP_TRY_SINK)
 #define CONFIG_TYPEC_CAP_TRY_STATE 1
@@ -849,11 +854,22 @@ static inline bool typec_role_is_try_src(
 
 static inline void typec_try_src_entry(struct tcpc_device *tcpc)
 {
+//prize add by lipengpeng 20220530 start
+	uint32_t chip_id;
+	int rv = 0;
+//prize add by lipengpeng 20220530 end
 	TYPEC_NEW_STATE(typec_try_src);
 	tcpc->typec_drp_try_timeout = false;
 
 	tcpci_set_cc(tcpc, TYPEC_CC_RP);
 	tcpc_enable_timer(tcpc, TYPEC_TRY_TIMER_DRP_TRY);
+	
+//prize add by lipengpeng 20220530 start	
+	rv = tcpci_get_chip_id(tcpc, &chip_id);
+	if (!rv && (SC2150A_DID == chip_id || chip_id == SC2150B_DID))  {
+		tcpc_typec_handle_cc_change(tcpc);
+	}
+//prize add by lipengpeng 20220530 end	
 }
 
 static inline void typec_trywait_snk_entry(struct tcpc_device *tcpc)
@@ -908,11 +924,21 @@ static inline bool typec_role_is_try_sink(
 
 static inline void typec_try_snk_entry(struct tcpc_device *tcpc)
 {
+//prize add by lipengpeng 20220530 start
+	int rv = 0;
+	uint32_t chip_id;
+//prize add by lipengpeng 20220530 end
 	TYPEC_NEW_STATE(typec_try_snk);
 	tcpc->typec_drp_try_timeout = false;
 
 	tcpci_set_cc(tcpc, TYPEC_CC_RD);
 	tcpc_enable_timer(tcpc, TYPEC_TRY_TIMER_DRP_TRY);
+//prize add by lipengpeng 20220530 start	
+	rv = tcpci_get_chip_id(tcpc, &chip_id);
+	if (!rv && (SC2150A_DID == chip_id || chip_id == SC2150B_DID))  {
+		tcpc_typec_handle_cc_change(tcpc);
+	}
+//prize add by lipengpeng 20220530 end
 }
 
 static inline void typec_trywait_src_entry(struct tcpc_device *tcpc)
@@ -1569,6 +1595,10 @@ static inline bool typec_handle_cc_changed_entry(struct tcpc_device *tcpc)
 static inline void typec_attach_wait_entry(struct tcpc_device *tcpc)
 {
 	bool as_sink;
+//prize add by lipengpeng 20220530 start
+	int rv = 0;
+	uint32_t chip_id = 0;
+//prize add by lipengpeng 20220530 end
 #if IS_ENABLED(CONFIG_USB_POWER_DELIVERY)
 	struct pd_port *pd_port = &tcpc->pd_port;
 #endif	/* CONFIG_USB_POWER_DELIVERY */
@@ -1636,10 +1666,18 @@ static inline void typec_attach_wait_entry(struct tcpc_device *tcpc)
 #if CONFIG_TYPEC_NOTIFY_ATTACHWAIT
 	tcpci_notify_attachwait_state(tcpc, as_sink);
 #endif	/* CONFIG_TYPEC_NOTIFY_ATTACHWAIT */
-
-	if (as_sink)
+//prize add by lipengpeng 20220530 start
+//	if (as_sink)
+	rv = tcpci_get_chip_id(tcpc, &chip_id);
+	if (as_sink) {
+//prize add by lipengpeng 20220530 end
 		TYPEC_NEW_STATE(typec_attachwait_snk);
-	else {
+//prize add by lipengpeng 20220530 start
+//	else {
+	if (!rv && (SC2150A_DID == chip_id || chip_id == SC2150B_DID))
+			tcpci_set_cc(tcpc, TYPEC_CC_RD);
+	} else {
+//prize add by lipengpeng 20220530 end
 		/* Advertise Rp level before Attached.SRC Ellisys 3.1.6359 */
 		tcpci_set_cc(tcpc, tcpc->typec_local_rp_level);
 		TYPEC_NEW_STATE(typec_attachwait_src);
@@ -1666,8 +1704,11 @@ static inline int typec_attached_snk_cc_detach(struct tcpc_device *tcpc)
 		tcpc_enable_timer(tcpc, TYPEC_TIMER_PDDEBOUNCE);
 #endif /* CONFIG_COMPATIBLE_APPLE_TA */
 	} else if (tcpc->pd_port.pe_data.pd_prev_connected) {
-		TYPEC_INFO2("Detach_CC (PD)\n");
-		tcpc_enable_timer(tcpc, TYPEC_TIMER_PDDEBOUNCE);
+//prize add by lipengpeng 20220530 start
+		printk("Detach_CC (PD)\n");
+		//tcpc_enable_timer(tcpc, TYPEC_TIMER_PDDEBOUNCE);
+		tcpc_enable_timer(tcpc, TYPEC_TIMER_CCDEBOUNCE);
+//prize add by lipengpeng 20220530 end
 	}
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 	return 0;
@@ -1733,7 +1774,10 @@ static inline void typec_detach_wait_entry(struct tcpc_device *tcpc)
 		break;
 #endif	/* CONFIG_TYPEC_CAP_TRY_SINK */
 	default:
-		tcpc_enable_timer(tcpc, TYPEC_TIMER_PDDEBOUNCE);
+//prize add by lipengpeng 20220530 start
+	//	tcpc_enable_timer(tcpc, TYPEC_TIMER_PDDEBOUNCE);
+	    tcpc_enable_timer(tcpc, TYPEC_TIMER_CCDEBOUNCE);
+//prize add by lipengpeng 20220530 end
 		break;
 	}
 }
@@ -1909,6 +1953,9 @@ static inline bool typec_check_false_ra_detach(struct tcpc_device *tcpc)
 
 	if (drp) {
 		tcpci_set_cc(tcpc, TYPEC_CC_DRP);
+//prize add by lipengpeng 20220530 start
+		typec_enable_low_power_mode(tcpc, TYPEC_CC_DRP);
+//prize add by lipengpeng 20220530 end
 		tcpci_alert_status_clear(tcpc,
 			TCPC_REG_ALERT_EXT_RA_DETACH);
 	}
@@ -2087,6 +2134,12 @@ int tcpc_typec_handle_cc_change(struct tcpc_device *tcpc)
 		typec_wait_ps_change(tcpc, TYPEC_WAIT_PS_DISABLE);
 
 	if (typec_is_cc_attach(tcpc)) {
+		
+		printk("gezi--wire -charge check to wireless\n");
+		test_gpio_t(1);
+		//msleep(10);
+		//set_otg_en_t(1);
+		
 		typec_disable_low_power_mode(tcpc);
 		typec_attach_wait_entry(tcpc);
 		if (tcpc->tcpc_flags & TCPC_FLAGS_FLOATING_GROUND)
@@ -2108,6 +2161,10 @@ int tcpc_typec_handle_cc_change(struct tcpc_device *tcpc)
 #endif /* CONFIG_WD_POLLING_ONLY */
 #endif /* CONFIG_WATER_DETECTION */
 	} else {
+		
+		printk("gezi--wire -otg remove\n");
+		set_otg_en_t(0);
+		test_gpio_t(0);
 		if (tcpc->tcpc_flags & TCPC_FLAGS_TYPEC_OTP)
 			tcpci_set_otp_fwen(tcpc, false);
 		typec_detach_wait_entry(tcpc);
@@ -2584,10 +2641,13 @@ int tcpc_typec_handle_ps_change(struct tcpc_device *tcpc, int vbus_level)
 			tcpc, vbus_level >= TCPC_VBUS_VALID);
 	}
 #endif	/* CONFIG_TYPEC_CAP_AUDIO_ACC_SINK_VBUS */
-
-	if (vbus_level >= TCPC_VBUS_VALID)
+//prize add by lipengpeng 20220530 start
+//	if (vbus_level >= TCPC_VBUS_VALID)
+	if (vbus_level >= TCPC_VBUS_VALID) {
+		typec_disable_low_power_mode(tcpc);
 		return typec_handle_vbus_present(tcpc);
-
+}
+//prize add by lipengpeng 20220530 end
 	return typec_handle_vbus_absent(tcpc);
 }
 
@@ -2854,7 +2914,12 @@ int tcpc_typec_init(struct tcpc_device *tcpc, uint8_t typec_role)
 #if CONFIG_TYPEC_CAP_POWER_OFF_CHARGE
 	ret = typec_init_power_off_charge(tcpc);
 	if (ret != 0)
+//prize add by lipengpeng 20220530 start
+	{
+		printk("typec_init_power_off_charge\n");
 		return ret;
+	}
+//prize add by lipengpeng 20220530 end
 #endif	/* CONFIG_TYPEC_CAP_POWER_OFF_CHARGE */
 
 #if CONFIG_TYPEC_POWER_CTRL_INIT

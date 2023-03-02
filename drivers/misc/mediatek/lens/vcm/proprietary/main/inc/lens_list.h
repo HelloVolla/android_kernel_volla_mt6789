@@ -10,6 +10,18 @@
 #define _LENS_LIST_H
 
 extern void MAIN2AF_PowerDown(void);
+/*Prize add by zhuzhengjiang 20220716 start*/
+#define AW8601CSR_SetI2Cclient AW8601CSR_SetI2Cclient_Main
+#define AW8601CSR_Ioctl AW8601CSR_Ioctl_Main
+#define AW8601CSR_Release AW8601CSR_Release_Main
+#define AW8601CSR_GetFileName AW8601CSR_GetFileName_Main
+extern int AW8601CSR_SetI2Cclient(struct i2c_client *pstAF_I2Cclient,
+				 spinlock_t *pAF_SpinLock, int *pAF_Opened);
+extern long AW8601CSR_Ioctl(struct file *a_pstFile, unsigned int a_u4Command,
+			   unsigned long a_u4Param);
+extern int AW8601CSR_Release(struct inode *a_pstInode, struct file *a_pstFile);
+extern int AW8601CSR_GetFileName(unsigned char *pFileName);
+/*Prize add by zhuzhengjiang 20220716*/
 
 #define AK7371AF_SetI2Cclient AK7371AF_SetI2Cclient_Main
 #define AK7371AF_Ioctl AK7371AF_Ioctl_Main
@@ -229,6 +241,34 @@ extern int GT9764AF_Release(struct inode *a_pstInode, struct file *a_pstFile);
 extern int GT9764AF_PowerDown(struct i2c_client *pstAF_I2Cclient,
 				int *pAF_Opened);
 extern int GT9764AF_GetFileName(unsigned char *pFileName);
+// prize add by linchong 20210630 start
+#define GT9767AF_SetI2Cclient GT9767AF_SetI2Cclient_Main
+#define GT9767AF_Ioctl GT9767AF_Ioctl_Main
+#define GT9767AF_Release GT9767AF_Release_Main
+#define GT9767AF_PowerDown GT9767AF_PowerDown_Main
+#define GT9767AF_GetFileName GT9767AF_GetFileName_Main
+extern int GT9767AF_SetI2Cclient(struct i2c_client *pstAF_I2Cclient,
+				spinlock_t *pAF_SpinLock, int *pAF_Opened);
+extern long GT9767AF_Ioctl(struct file *a_pstFile, unsigned int a_u4Command,
+				unsigned long a_u4Param);
+extern int GT9767AF_Release(struct inode *a_pstInode, struct file *a_pstFile);
+extern int GT9767AF_PowerDown(struct i2c_client *pstAF_I2Cclient,
+				int *pAF_Opened);
+extern int GT9767AF_GetFileName(unsigned char *pFileName);
+// prize add by linchong 20210630 end
+#define GT9778AF_SetI2Cclient GT9778AF_SetI2Cclient_Main
+#define GT9778AF_Ioctl GT9778AF_Ioctl_Main
+#define GT9778AF_Release GT9778AF_Release_Main
+#define GT9778AF_PowerDown GT9778AF_PowerDown_Main
+#define GT9778AF_GetFileName GT9778AF_GetFileName_Main
+extern int GT9778AF_SetI2Cclient(struct i2c_client *pstAF_I2Cclient,
+				spinlock_t *pAF_SpinLock, int *pAF_Opened);
+extern long GT9778AF_Ioctl(struct file *a_pstFile, unsigned int a_u4Command,
+				unsigned long a_u4Param);
+extern int GT9778AF_Release(struct inode *a_pstInode, struct file *a_pstFile);
+extern int GT9778AF_PowerDown(struct i2c_client *pstAF_I2Cclient,
+				int *pAF_Opened);
+extern int GT9778AF_GetFileName(unsigned char *pFileName);
 
 #define LC898122AF_SetI2Cclient LC898122AF_SetI2Cclient_Main
 #define LC898122AF_Ioctl LC898122AF_Ioctl_Main

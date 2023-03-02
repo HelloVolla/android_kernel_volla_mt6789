@@ -65,14 +65,22 @@ struct vfs_dev *vfs_devp;
 
 int wait_for_vfs_done(void)
 {
-	int ret = 0;
+//prize add by lipengpeng 20220701 start
+//	int ret = 0;
+//prize add by lipengpeng 20220701 end
 #ifdef VFS_RDWR_SEM
-	ret = down_interruptible(&VFS_wr_sem);
+//prize add by lipengpeng 20220701 start 
+	down(&VFS_wr_sem);
+//prize add by lipengpeng 20220701 end 	
 #else
-	ret = wait_for_completion_interruptible(&VFS_wr_comp);
+//prize add by lipengpeng 20220701 start 
+	wait_for_completion(&VFS_wr_comp);
+//prize add by lipengpeng 20220701 end 
 #endif
-	if (ret != 0)
-		return ret;
+//prize add by lipengpeng 20220701 start
+//	if (ret != 0)
+//		return ret;
+//prize add by lipengpeng 20220701 end
 	return 0;
 }
 

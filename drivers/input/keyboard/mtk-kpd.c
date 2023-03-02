@@ -170,6 +170,11 @@ static int kpd_get_dts_info(struct mtk_keypad *keypad,
 	ret = of_property_read_u32_array(node, "mediatek,hw-init-map",
 		keypad->hw_init_map, keypad->hw_map_num);
 
+/* prize pengzhipeng modify  add init map2, 20200103 begin */
+	ret = of_property_read_u32_array(node, "mediatek,hw-init-map2",
+		keypad->hw_init_map, keypad->hw_map_num);
+/* prize pengzhipeng modify  add init map2, 20200103 begin */
+
 	if (ret) {
 		pr_err("hw-init-map was not defined in dts.\n");
 		return ret;

@@ -22,6 +22,9 @@
 
 #include "extcon-mtk-usb.h"
 
+#include "../../../power/supply/mtk_charger.h"
+#include "../../../power/supply/sm5602_fg.h"
+
 #if IS_ENABLED(CONFIG_TCPC_CLASS)
 #include "tcpm.h"
 #endif
@@ -189,19 +192,58 @@ static int mtk_usb_extcon_psy_init(struct mtk_extcon_info *extcon)
 	return ret;
 }
 
+
+static struct charger_device *primary_charger;
+
+static int mtk_usb_extcon_set_vbus_v1(bool is_on) {
+	if (!primary_charger) {
+		primary_charger = get_charger_by_name("primary_chg");
+		if (!primary_charger) {
+			pr_info("%s: get primary charger device failed\n", __func__);
+			return -ENODEV;
+		}
+	}
+
+	if (is_on) {
+		charger_dev_enable_otg(primary_charger, true);
+		charger_dev_set_boost_current_limit(primary_charger,1500000);
+	} else {
+		charger_dev_enable_otg(primary_charger, false);
+	}
+	return 0;
+}
+
+
 static int mtk_usb_extcon_set_vbus(struct mtk_extcon_info *extcon,
 							bool is_on)
 {
-	struct regulator *vbus = extcon->vbus;
+	//struct regulator *vbus = extcon->vbus;
 	struct device *dev = extcon->dev;
-	int ret;
-
-	/* vbus is optional */
-	if (!vbus || extcon->vbus_on == is_on)
-		return 0;
+	//int ret;
 
 	dev_info(dev, "vbus turn %s\n", is_on ? "on" : "off");
 
+//prize add by lipengpeng 20210308 start	
+#if IS_ENABLED(CONFIG_PRIZE_MT5725_SUPPORT_15W)
+	if(is_on){
+		//turn_off_5725(1);  //GPIO88 OD5
+		//set_otg_gpio(1);  //OD7  87
+		set_otg_en_t(1);
+	}else{
+		//set_otg_gpio(0);//OD7
+		//turn_off_5725(0);//OD5   0--->low  1--->high
+		set_otg_en_t(0);
+	}
+#endif
+//prize add by lipengpeng 20210308 end
+
+#if 1
+	mtk_usb_extcon_set_vbus_v1(is_on);
+#else
+		/* vbus is optional */
+	if (!vbus || extcon->vbus_on == is_on)
+		return 0;
+	
 	if (is_on) {
 		if (extcon->vbus_vol) {
 			ret = regulator_set_voltage(vbus,
@@ -229,6 +271,7 @@ static int mtk_usb_extcon_set_vbus(struct mtk_extcon_info *extcon,
 	} else {
 		regulator_disable(vbus);
 	}
+#endif
 
 	extcon->vbus_on = is_on;
 
@@ -468,7 +511,7 @@ static int mtk_usb_extcon_probe(struct platform_device *pdev)
 	struct mtk_extcon_info *extcon;
 	const char *tcpc_name;
 	int ret;
-
+      printk("gezi---------mtk_usb_extcon_probe\n");
 	extcon = devm_kzalloc(&pdev->dev, sizeof(*extcon), GFP_KERNEL);
 	if (!extcon)
 		return -ENOMEM;
@@ -591,6 +634,7 @@ static struct platform_driver mtk_usb_extcon_driver = {
 
 static int __init mtk_usb_extcon_init(void)
 {
+	 printk("gezi---------mtk_usb_extcon_init\n");
 	return platform_driver_register(&mtk_usb_extcon_driver);
 }
 late_initcall(mtk_usb_extcon_init);

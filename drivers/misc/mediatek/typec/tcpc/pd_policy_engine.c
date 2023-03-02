@@ -1082,6 +1082,9 @@ static inline bool pd_try_get_vdm_event(
 
 	switch (pd_port->pe_pd_state) {
 #if CONFIG_USB_PD_PE_SINK
+//prize add by lipengpeng 20220530 start 
+case PE_SNK_TRANSITION_SINK:
+//prize add by lipengpeng 20220530 end
 	case PE_SNK_READY:
 		ret = pd_get_vdm_event(tcpc, pd_event);
 		break;

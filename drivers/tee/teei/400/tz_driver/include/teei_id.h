@@ -86,17 +86,45 @@ enum teei_cmd_type {
  *     end   - mva end
  * @return:
  * ***************************************************************/
+ //prize add by lipengpeng 20220701 start 
+static inline void __Flush_Dcache_By_Area(unsigned long start,
+						unsigned long end)
+{
+	uint64_t temp[2];
+
+	temp[0] = start;
+	temp[1] = end;
+	__asm__ volatile(
+		"ldr x0, [%[temp], #0]\n\t"
+		"ldr x1, [%[temp], #8]\n\t"
+		"mrs    x3, ctr_el0\n\t"
+		"ubfm   x3, x3, #16, #19\n\t"
+		"mov	x2, #4\n\t"
+		"lsl	x2, x2, x3\n\t"
+		"dsb	sy\n\t"
+		"sub	x3, x2, #1\n\t"
+		"bic	x0, x0, x3\n\t"
+		/* invalidate D line / unified line */
+		"1:	dc      civac, x0\n\t"
+		"add	x0, x0, x2\n\t"
+		"cmp	x0, x1\n\t"
+		"b.lo	1b\n\t"
+		"dsb	sy\n\t"
+		: :
+		[temp] "r" (temp)
+		: "x0", "x1", "x2", "x3", "memory");
+}
+
 static inline void Flush_Dcache_By_Area(unsigned long start, unsigned long end)
 {
-//	if (boot_soter_flag == START_STATUS) {
-//#ifdef CONFIG_ARM64
-//		__flush_dcache_area((void *)start, (end - start));
-//#else
-//		__cpuc_flush_dcache_area((void *)start, (end - start));
-//#endif
-//	}
-
-
+	if (boot_soter_flag == START_STATUS) {
+#ifdef CONFIG_ARM64
+		__Flush_Dcache_By_Area(start, end);
+#else
+		__cpuc_flush_dcache_area((void *)start, (end - start));
+#endif
+	}
+//prize add by lipengpeng 20220701 end 
 }
 
 /******************************************************************

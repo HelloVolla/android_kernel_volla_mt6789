@@ -511,7 +511,9 @@ static inline void rt1711_poll_ctrl(struct rt1711_chip *chip)
 
 	if (atomic_read(&chip->poll_count) == 0) {
 		atomic_inc(&chip->poll_count);
-		cpu_idle_poll_ctrl(true);
+//prize add by lipengpeng 20220530 start
+		//cpu_idle_poll_ctrl(true);
+//prize add by lipengpeng 20220530 end
 	}
 
 	schedule_delayed_work(
@@ -529,7 +531,6 @@ static void rt1711_irq_work_handler(struct kthread_work *work)
 	/* make sure I2C bus had resumed */
 	down(&chip->suspend_lock);
 	tcpci_lock_typec(chip->tcpc);
-
 #if DEBUG_GPIO
 	gpio_set_value(DEBUG_GPIO, 1);
 #endif
@@ -551,11 +552,11 @@ static void rt1711_irq_work_handler(struct kthread_work *work)
 
 static void rt1711_poll_work(struct work_struct *work)
 {
-	struct rt1711_chip *chip = container_of(
-		work, struct rt1711_chip, poll_work.work);
+	//struct rt1711_chip *chip = container_of(
+	//	work, struct rt1711_chip, poll_work.work);
 
-	if (atomic_dec_and_test(&chip->poll_count))
-		cpu_idle_poll_ctrl(false);
+	//if (atomic_dec_and_test(&chip->poll_count))
+	//	cpu_idle_poll_ctrl(false);
 }
 
 static irqreturn_t rt1711_intr_handler(int irq, void *data)
@@ -592,7 +593,7 @@ static int rt1711_init_alert(struct tcpc_device *tcpc)
 
 	pr_info("%s name = %s, gpio = %d\n", __func__,
 				chip->tcpc_desc->name, chip->irq_gpio);
-
+    
 	ret = devm_gpio_request(chip->dev, chip->irq_gpio, name);
 #if DEBUG_GPIO
 	gpio_request(DEBUG_GPIO, "debug_latency_pin");
@@ -765,6 +766,11 @@ static int rt1711_tcpc_init(struct tcpc_device *tcpc, bool sw_reset)
 	if (chip->chip_id == RT1711H_DID_A) {
 		rt1711_i2c_write8(tcpc, TCPC_V10_REG_FAULT_CTRL,
 			TCPC_V10_REG_FAULT_CTRL_DIS_VCONN_OV);
+//prize add by lipengpeng 20220530 start
+	}else if (chip->chip_id == SC2150A_DID || chip->chip_id == SC2150B_DID) {
+		rt1711_i2c_write8(tcpc, TCPC_V10_REG_COMMAND,
+			TCPM_CMD_ENABLE_VBUS_DETECT);
+//prize add by lipengpeng 20220530 end
 	}
 
 	/*
@@ -924,7 +930,9 @@ static int rt1711_get_cc(struct tcpc_device *tcpc, int *cc1, int *cc2)
 {
 	int status, role_ctrl, cc_role;
 	bool act_as_sink, act_as_drp;
-
+//prize add by lipengpeng 20220530 start
+	struct rt1711_chip *chip = tcpc_get_dev_data(tcpc);
+//prize add by lipengpeng 20220530 end
 	status = rt1711_i2c_read8(tcpc, TCPC_V10_REG_CC_STATUS);
 	if (status < 0)
 		return status;
@@ -958,7 +966,17 @@ static int rt1711_get_cc(struct tcpc_device *tcpc, int *cc1, int *cc2)
 	 * If status is not open, then OR in termination to convert to
 	 * enum tcpc_cc_voltage_status.
 	 */
-
+//prize add by lipengpeng 20220530 start
+	if ((chip->chip_id == SC2150A_DID || chip->chip_id == SC2150B_DID)&& act_as_drp &&
+			act_as_sink) {
+		if ((*cc1 + *cc2) > (2 * TYPEC_CC_VOLT_RA)) {
+			if (*cc1 == TYPEC_CC_VOLT_RA)
+				*cc1 = TYPEC_CC_VOLT_OPEN;
+			if (*cc2 == TYPEC_CC_VOLT_RA)
+				*cc2 = TYPEC_CC_VOLT_OPEN;
+		}
+	}
+//prize add by lipengpeng 20220530 end
 	if (*cc1 != TYPEC_CC_VOLT_OPEN)
 		*cc1 |= (act_as_sink << 2);
 
@@ -991,19 +1009,37 @@ static int rt1711_enable_vsafe0v_detect(
 
 static int rt1711_set_cc(struct tcpc_device *tcpc, int pull)
 {
-	int ret;
-	uint8_t data;
+//prize add by lipengpeng 20220530 start
+	//int ret;
+//	uint8_t data;
+	int ret = 0;
+	uint8_t data = 0;
+	uint8_t old_data = 0;
+//prize add by lipengpeng 20220530 end
 	int rp_lvl = TYPEC_CC_PULL_GET_RP_LVL(pull), pull1, pull2;
-
+//prize add by lipengpeng 20220530 start
+	struct rt1711_chip *chip = tcpc_get_dev_data(tcpc);
+//prize add by lipengpeng 20220530 end
 	RT1711_INFO("\n");
 	pull = TYPEC_CC_PULL_GET_RES(pull);
+//prize add by lipengpeng 20220530 start
+	if (chip->chip_id == SC2150A_DID || chip->chip_id == SC2150B_DID)
+	old_data = rt1711_i2c_read8(tcpc, TCPC_V10_REG_ROLE_CTRL);
+//prize add by lipengpeng 20220530 end
 	if (pull == TYPEC_CC_DRP) {
 		data = TCPC_V10_REG_ROLE_CTRL_RES_SET(
 				1, rp_lvl, TYPEC_CC_RD, TYPEC_CC_RD);
+//prize add by lipengpeng 20220530 start
+//		ret = rt1711_i2c_write8(
+//			tcpc, TCPC_V10_REG_ROLE_CTRL, data);
 
-		ret = rt1711_i2c_write8(
-			tcpc, TCPC_V10_REG_ROLE_CTRL, data);
-
+		if ((chip->chip_id != SC2150A_DID && chip->chip_id != SC2150B_DID) || old_data != data) {
+//prize add by lipengpeng 20220530 end
+			ret = rt1711_i2c_write8(
+				tcpc, TCPC_V10_REG_ROLE_CTRL, data);
+//prize add by lipengpeng 20220530 start
+		}
+//prize add by lipengpeng 20220530 end
 		if (ret == 0) {
 #if CONFIG_TCPC_VSAFE0V_DETECT_IC
 			rt1711_enable_vsafe0v_detect(tcpc, false);
@@ -1017,17 +1053,36 @@ static int rt1711_set_cc(struct tcpc_device *tcpc, int pull)
 #endif	/* CONFIG_USB_POWER_DELIVERY */
 
 		pull1 = pull2 = pull;
-
-		if ((pull == TYPEC_CC_RP_DFT || pull == TYPEC_CC_RP_1_5 ||
-			pull == TYPEC_CC_RP_3_0) &&
-			tcpc->typec_is_attached_src) {
-			if (tcpc->typec_polarity)
-				pull1 = TYPEC_CC_OPEN;
-			else
-				pull2 = TYPEC_CC_OPEN;
+//prize add by lipengpeng 20220530 start
+//		if ((pull == TYPEC_CC_RP_DFT || pull == TYPEC_CC_RP_1_5 ||
+//			pull == TYPEC_CC_RP_3_0) &&
+//			tcpc->typec_is_attached_src) {
+//			if (tcpc->typec_polarity)
+//				pull1 = TYPEC_CC_OPEN;
+//			else
+//				pull2 = TYPEC_CC_OPEN;
+		if (chip->chip_id != SC2150A_DID && chip->chip_id != SC2150B_DID) {
+//prize add by lipengpeng 20220530 end
+			if ((pull == TYPEC_CC_RP_DFT || pull == TYPEC_CC_RP_1_5 ||
+				pull == TYPEC_CC_RP_3_0) &&
+				tcpc->typec_is_attached_src) {
+				if (tcpc->typec_polarity)
+					pull1 = TYPEC_CC_OPEN;
+				else
+					pull2 = TYPEC_CC_OPEN;
+			}
+//prize add by lipengpeng 20220530 start
 		}
+//prize add by lipengpeng 20220530 end
 		data = TCPC_V10_REG_ROLE_CTRL_RES_SET(0, rp_lvl, pull1, pull2);
-		ret = rt1711_i2c_write8(tcpc, TCPC_V10_REG_ROLE_CTRL, data);
+//prize add by lipengpeng 20220530 start
+//		ret = rt1711_i2c_write8(tcpc, TCPC_V10_REG_ROLE_CTRL, data);
+		if ((chip->chip_id != SC2150A_DID && chip->chip_id != SC2150B_DID )|| old_data != data) {
+//prize add by lipengpeng 20220530 end
+			ret = rt1711_i2c_write8(tcpc, TCPC_V10_REG_ROLE_CTRL, data);
+//prize add by lipengpeng 20220530 start
+		}
+//prize add by lipengpeng 20220530 end
 	}
 
 	return 0;
@@ -1156,6 +1211,10 @@ static int rt1711_tcpc_deinit(struct tcpc_device *tcpc)
 	rt1711_i2c_write8(tcpc,
 		RT1711H_REG_INTRST_CTRL,
 		RT1711H_REG_INTRST_SET(true, 0));
+//prize add by lipengpeng 20220530 start		
+//		if (chip->chip_id == SC2150A_DID)
+		rt1711_i2c_write8(tcpc, RT1711H_REG_SWRESET, 1);
+	//prize add by lipengpeng 20220530 end	
 #else
 	rt1711_i2c_write8(tcpc, RT1711H_REG_SWRESET, 1);
 #endif	/* CONFIG_TCPC_SHUTDOWN_CC_DETACH */
@@ -1202,32 +1261,49 @@ static int rt1711_set_rx_enable(struct tcpc_device *tcpc, uint8_t enable)
 
 	return ret;
 }
+//prize add by lipengpeng 20220530 start
+static int rt1711_get_chip_id(struct tcpc_device *tcpc, uint32_t *chip_id)
+{
+	struct rt1711_chip *chip = tcpc_get_dev_data(tcpc);
+
+	*chip_id = chip->chip_id;
+
+	return 0;
+}
+//prize add by lipengpeng 20220530 end
 
 static int rt1711_get_message(struct tcpc_device *tcpc, uint32_t *payload,
 			uint16_t *msg_head, enum tcpm_transmit_type *frame_type)
 {
 	struct rt1711_chip *chip = tcpc_get_dev_data(tcpc);
 	int rv;
-	uint8_t type, cnt = 0;
+	uint8_t type, cnt = 0,cur_cnt;
 	uint8_t buf[4];
 	const uint16_t alert_rx =
 		TCPC_V10_REG_ALERT_RX_STATUS|TCPC_V10_REG_RX_OVERFLOW;
+//prize add by lipengpeng 20220729 start 
+	do{
+		rv = rt1711_block_read(chip->client,
+				TCPC_V10_REG_RX_BYTE_CNT, 4, buf);
+		cnt = buf[0];
+		type = buf[1];
+		*msg_head = *(uint16_t *)&buf[2];
+		*frame_type = (enum tcpm_transmit_type) type;
 
-	rv = rt1711_block_read(chip->client,
-			TCPC_V10_REG_RX_BYTE_CNT, 4, buf);
-	cnt = buf[0];
-	type = buf[1];
-	*msg_head = *(uint16_t *)&buf[2];
-
-	/* TCPC 1.0 ==> no need to subtract the size of msg_head */
-	if (rv >= 0 && cnt > 3) {
-		cnt -= 3; /* MSG_HDR */
-		rv = rt1711_block_read(chip->client, TCPC_V10_REG_RX_DATA, cnt,
-				(uint8_t *) payload);
-	}
-
-	*frame_type = (enum tcpm_transmit_type) type;
-
+		/* TCPC 1.0 ==> no need to subtract the size of msg_head */
+		if (rv >= 0 && cnt > 3) {
+			cnt -= 3; /* MSG_HDR */
+			rv = rt1711_block_read(chip->client, TCPC_V10_REG_RX_DATA, cnt,
+					(uint8_t *) payload);
+		}
+		cur_cnt = rt1711_i2c_read8(tcpc, TCPC_V10_REG_RX_BYTE_CNT);
+		 
+		if(cur_cnt <0)
+			break;
+		if(cur_cnt >3)
+			cur_cnt -=3;
+    }while(cur_cnt != cnt);
+//prize add by lipengpeng 20220729 end 	 
 	/* Read complete, clear RX status alert bit */
 	tcpci_alert_status_clear(tcpc, alert_rx);
 
@@ -1275,7 +1351,10 @@ static int rt1711_transmit(struct tcpc_device *tcpc,
 
 		if (data_cnt > 0)
 			memcpy(packet.data, (uint8_t *) data, data_cnt);
-
+//prize add by lipengpeng 20220530 start
+		if (chip->chip_id == SC2150A_DID || chip->chip_id == SC2150B_DID)
+			packet.cnt += 4;
+//prize add by lipengpeng 20220530 end
 		rv = rt1711_block_write(chip->client,
 				TCPC_V10_REG_TX_BYTE_CNT,
 				packet.cnt+1, (uint8_t *) &packet);
@@ -1308,6 +1387,9 @@ static struct tcpc_ops rt1711_tcpc_ops = {
 	.init = rt1711_tcpc_init,
 	.alert_status_clear = rt1711_alert_status_clear,
 	.fault_status_clear = rt1711_fault_status_clear,
+//prize add by lipengpeng 20220530 start
+	.get_chip_id= rt1711_get_chip_id,
+//prize add by lipengpeng 20220530 end
 	.get_alert_mask = rt1711_get_alert_mask,
 	.get_alert_status = rt1711_get_alert_status,
 	.get_power_status = rt1711_get_power_status,
@@ -1349,31 +1431,38 @@ static struct tcpc_ops rt1711_tcpc_ops = {
 
 static int rt_parse_dt(struct rt1711_chip *chip, struct device *dev)
 {
-	struct device_node *np = NULL;
+//prize add by lipengpeng 20220530 start
+	//struct device_node *np = NULL;
+	struct device_node *np = dev->of_node;
+//prize add by lipengpeng 20220530 end
 	int ret = 0;
 
 	pr_info("%s\n", __func__);
+//prize add by lipengpeng 20220530 start
+	//np = of_find_node_by_name(NULL, "type_c_port0"); //prize 
+	//if (!np) {
+	//	pr_notice("%s find node type_c_port0 fail\n", __func__);
+	//	return -ENODEV;
+	//}
+	//dev->of_node = np;
 
-	np = of_find_node_by_name(NULL, "rt1711_type_c_port0");
-	if (!np) {
-		pr_notice("%s find node rt1711_type_c_port0 fail\n", __func__);
-		return -ENODEV;
-	}
-	dev->of_node = np;
-
-#if IS_ENABLED(CONFIG_MTK_GPIO) || IS_ENABLED(CONFIG_MTK_GPIOLIB_STAND)
+//#if (!IS_ENABLED(CONFIG_MTK_GPIO)) || IS_ENABLED(CONFIG_MTK_GPIOLIB_STAND)
+//prize add by lipengpeng 20220530 end
 	ret = of_get_named_gpio(np, "rt1711pd,intr_gpio", 0);
 	if (ret < 0) {
 		pr_err("%s no intr_gpio info\n", __func__);
 		return ret;
 	}
 	chip->irq_gpio = ret;
-#else
-	ret = of_property_read_u32(np,
-		"rt1711pd,intr_gpio_num", &chip->irq_gpio);
-	if (ret < 0)
-		pr_err("%s no intr_gpio info\n", __func__);
-#endif
+	//prize add by lipengpeng 20220530 start
+//#else
+//	ret = of_property_read_u32(np,
+//		"rt1711pd,intr_gpio_num", &chip->irq_gpio);
+//	printk("rt1711pd,intr_gpio_num\n");	
+//	if (ret < 0)
+//		pr_err("%s no intr_gpio info\n", __func__);
+//#endif
+//prize add by lipengpeng 20220530 end
 	return ret < 0 ? ret : 0;
 }
 
@@ -1514,7 +1603,10 @@ static int rt1711_tcpcdev_init(struct rt1711_chip *chip, struct device *dev)
 #endif  /* CONFIG_USB_PD_RETRY_CRC_DISCARD */
 
 #if CONFIG_USB_PD_REV30
-	if (chip->chip_id >= RT1715_DID_D)
+//prize add by lipengpeng 20220530 start
+//	if (chip->chip_id >= RT1715_DID_D)
+if ((chip->chip_id >= RT1715_DID_D) || (chip->chip_id == SC2150A_DID || chip->chip_id == SC2150B_DID))
+//prize add by lipengpeng 20220530 end
 		chip->tcpc->tcpc_flags |= TCPC_FLAGS_PD_REV30;
 
 	if (chip->tcpc->tcpc_flags & TCPC_FLAGS_PD_REV30)
@@ -1529,7 +1621,10 @@ static int rt1711_tcpcdev_init(struct rt1711_chip *chip, struct device *dev)
 
 #define RICHTEK_1711_VID	0x29cf
 #define RICHTEK_1711_PID	0x1711
-
+//prize add by lipengpeng 20220530 start
+#define SC2150A_VID			0x311C
+#define SC2150A_PID			0x2150
+//prize add by lipengpeng 20220530 end
 static inline int rt1711h_check_revision(struct i2c_client *client)
 {
 	u16 vid, pid, did;
@@ -1541,8 +1636,10 @@ static inline int rt1711h_check_revision(struct i2c_client *client)
 		dev_err(&client->dev, "read chip ID fail\n");
 		return -EIO;
 	}
-
-	if (vid != RICHTEK_1711_VID) {
+//prize add by lipengpeng 20220530 start
+//	if (vid != RICHTEK_1711_VID) {
+if ((vid != RICHTEK_1711_VID) && (vid != SC2150A_VID)) {
+//prize add by lipengpeng 20220530 end
 		pr_info("%s failed, VID=0x%04x\n", __func__, vid);
 		return -ENODEV;
 	}
@@ -1552,8 +1649,10 @@ static inline int rt1711h_check_revision(struct i2c_client *client)
 		dev_err(&client->dev, "read product ID fail\n");
 		return -EIO;
 	}
-
-	if (pid != RICHTEK_1711_PID) {
+//prize add by lipengpeng 20220530 start
+//	if (pid != RICHTEK_1711_PID) {
+if ((pid != RICHTEK_1711_PID) && (pid != SC2150A_PID)) {
+//prize add by lipengpeng 20220530 end
 		pr_info("%s failed, PID=0x%04x\n", __func__, pid);
 		return -ENODEV;
 	}
@@ -1578,6 +1677,9 @@ static int rt1711_i2c_probe(struct i2c_client *client,
 {
 	struct rt1711_chip *chip;
 	int ret = 0, chip_id;
+	//prize add by lipengpeng 20220530 start
+	int i;
+	//prize add by lipengpeng 20220530 end
 	bool use_dt = client->dev.of_node;
 
 	pr_info("%s (%s)\n", __func__, RT1711H_DRV_VERSION);
@@ -1586,8 +1688,13 @@ static int rt1711_i2c_probe(struct i2c_client *client,
 		pr_info("I2C functionality : OK...\n");
 	else
 		pr_info("I2C functionality check : failuare...\n");
-
+//prize add by lipengpeng 20220530 start
+for(i=0 ; i<3 ; i++){
+	
 	chip_id = rt1711h_check_revision(client);
+	
+  }
+	//prize add by lipengpeng 20220530 end
 	if (chip_id < 0)
 		return chip_id;
 

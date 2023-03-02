@@ -218,6 +218,9 @@ struct tcpc_ops {
 	int (*init)(struct tcpc_device *tcpc, bool sw_reset);
 	int (*init_alert_mask)(struct tcpc_device *tcpc);
 	int (*alert_status_clear)(struct tcpc_device *tcpc, uint32_t mask);
+//prize add by lipengpeng 20220530 start
+	int (*get_chip_id)(struct tcpc_device *tcpc, uint32_t *chip_id);
+//prize add by lipengpeng 20220530 end
 	int (*fault_status_clear)(struct tcpc_device *tcpc, uint8_t status);
 	int (*set_alert_mask)(struct tcpc_device *tcpc, uint32_t mask);
 	int (*get_alert_mask)(struct tcpc_device *tcpc, uint32_t *mask);
@@ -554,13 +557,15 @@ static inline bool pd_check_rev30(struct pd_port *pd_port)
 	return pd_get_rev(pd_port, TCPC_TX_SOP) >= PD_REV30;
 }
 #endif /* CONFIG_USB_POWER_DELIVERY */
-
-#if IS_ENABLED(CONFIG_PD_DBG_INFO)
+//prize add by lipengpeng 20220530 start
+/*#if IS_ENABLED(CONFIG_PD_DBG_INFO)
 #define __RT_DBG_INFO	pd_dbg_info
-#else
+#else*/
+//prize add by lipengpeng 20220530 end
 #define __RT_DBG_INFO	pr_info
-#endif /* CONFIG_PD_DBG_INFO */
-
+//prize add by lipengpeng 20220530 start
+//#endif /* CONFIG_PD_DBG_INFO */
+//prize add by lipengpeng 20220530 end
 #if CONFIG_TCPC_LOG_WITH_PORT_NAME
 #define RT_DBG_INFO(format, args...)	__RT_DBG_INFO(format,	\
 						      tcpc->desc.name, ##args)

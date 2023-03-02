@@ -126,7 +126,51 @@ config BATTERY_CW2015
 
 	  This driver can also be built as a module. If so, the module will be
 	  called cw2015_battery.
+#prize add by lipengpeng 20220524 start 
+config BATTERY_CW2217
+	tristate "CW2217 Battery driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here to enable support for the cellwise CW2217
+	  battery fuel gauge (used in the Pinebook Pro & others)
 
+	  This driver can also be built as a module. If so, the module will be
+	  called CW2217_battery.
+#prize add by lipengpeng 20220524 end
+#prize add by zhaopengge 20220610 start 
+config BATTERY_SM5602
+	tristate "sm5602 Battery driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here to enable support for the cellwise CW2217
+	  battery fuel gauge (used in the Pinebook Pro & others)
+
+	  This driver can also be built as a module. If so, the module will be
+	  called sm5602_battery.
+	  
+config PRIZE_CHARGE_CTRL_POLICY
+	tristate "prize charge ctrl policy"
+	bool "PRIZE_CHARGE_CTRL_POLICY"
+	default n
+	help
+	  This is used to PRIZE_CHARGE_CTRL_POLICY	  
+
+#prize add by zhaopengge 20220610 end 	
+
+config PRIZE_MT5725_SUPPORT_15W
+	tristate "MT5725 Battery driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here to enable support for the cellwise MT5725
+	  battery fuel gauge (used in the Pinebook Pro & others)
+
+	  This driver can also be built as a module. If so, the module will be
+	  called MT5725.
+	  
+	  
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
 	depends on W1
@@ -817,7 +861,16 @@ config CHARGER_MT6375
 	  with high-accuracy current and voltage regulation.
 	  The device is compliant with the USB Battery Charging Specification
 	  Revision 1.2.
-
+#prize add by lipengpeng 20220524 start 
+config CHARGER_SC8960X
+	tristate "SC8960X charger driver"
+	help
+	  Say Y to enable support for the SC8960X charger.
+	  The driver supports controlling switching charger and OTG
+	  with high-accuracy current and voltage regulation.
+	  The device is compliant with the USB Battery Charging Specification
+	  Revision 1.2.
+	#prize add by lipengpeng 20220524 end   
 config GAUGE_MT6375
 	tristate "MT6375 fuel gauge driver"
 	depends on MFD_MT6375
@@ -892,6 +945,17 @@ config CHARGER_RT9759
 	  It is mainly used as cap divider charger
 	  for Mediatek Pump Express 5.0.
 	  It depends on config MTK_CHARGER
+
+#add by liaojie 20210305  for sc8551 30w start
+config CHARGER_SC8551
+	tristate "Charger Driver for Richtek SC8551 Charger IC"
+	default n
+	depends on MTK_CHARGER
+	help
+	  Say Y here to enable support of SC8551 divider charger
+	  It is mainly used as divider charger forv direct charge
+
+#add by liaojie 20210305  for sc8551 30w end
 
 config RN5T618_POWER
 	tristate "RN5T618 charger/fuel gauge support"

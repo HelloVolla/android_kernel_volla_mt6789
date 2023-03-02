@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2020 MediaTek Inc. */
 
-&i2c6 {
+&i2c9 {
 	lm3643:lm3643@63 {
 		compatible = "mediatek,lm3643";
 		reg = <0x63>;
@@ -22,7 +22,7 @@
 				};
 			};
 		};
-		flash@1{
+/*		flash@1{
 			reg = <1>;
 			type = <0>;
 			ct = <1>;
@@ -32,7 +32,7 @@
 					remote-endpoint = <&flashlight_1>;
 				};
 			};
-		};
+		};*/
 	};
 };
 
@@ -42,7 +42,7 @@
 
 	lm3643_pins_hwen_high: hwen_high {
 		pins_cmd_dat {
-			pinmux = <PINMUX_GPIO157__FUNC_GPIO157>;
+			pinmux = <PINMUX_GPIO48__FUNC_GPIO48>;
 			slew-rate = <1>;
 			output-high;
 		};
@@ -50,7 +50,7 @@
 
 	lm3643_pins_hwen_low: hwen_low {
 		pins_cmd_dat {
-			pinmux = <PINMUX_GPIO157__FUNC_GPIO157>;
+			pinmux = <PINMUX_GPIO48__FUNC_GPIO48>;
 			slew-rate = <1>;
 			output-low;
 		};
@@ -63,11 +63,11 @@
 			remote-endpoint = <&fl_core_0>;
 		};
 	};
-	port@1 {
+/*	port@1 {
 		flashlight_1: endpoint {
 			remote-endpoint = <&fl_core_1>;
 		};
-	};
+	};*/
 };
 
 /* CAMERA AF */
@@ -79,24 +79,24 @@
 	};
 };
 
-&i2c2 {
+&i2c4 {
 	camera_main_two_af_mtk:camera_main_two_af@0d {
 		compatible = "mediatek,camera_main_two_af";
 		reg = <0x0d>;
 		status = "okay";
 	};
 
-	camera_main_three_af_mtk:camera_main_three_af@0c {
-		compatible = "mediatek,camera_main_three_af";
-		reg = <0x0c>;
-		status = "okay";
-	};
+//	camera_main_three_af_mtk:camera_main_three_af@0c {
+//		compatible = "mediatek,camera_main_three_af";
+//		reg = <0x0c>;
+//		status = "okay";
+//	};
 };
 
 &camera_af_hw_node {
-	camaf_m1_pmic-supply = <&rt5133_ldo3>;
-	camaf_m2_pmic-supply = <&rt5133_gpio1>;
-	camaf_m3_pmic-supply = <&rt5133_gpio1>;
+//	camaf_m1_pmic-supply = <&rt5133_ldo3>;
+//	camaf_m2_pmic-supply = <&rt5133_gpio1>;
+//	camaf_m3_pmic-supply = <&rt5133_gpio1>;
 	status = "okay";
 };
 /* CAMERA AF end */

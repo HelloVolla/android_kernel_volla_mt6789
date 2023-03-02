@@ -19,6 +19,8 @@ struct GPIO_PINCTRL gpio_pinctrl_list_cam[
 	{"ldo_vcama1_0"},
 	{"ldo_vcamd_1"},
 	{"ldo_vcamd_0"},
+	{"ldo_vcamaf_1"},//prize add by linchong 20220615 
+	{"ldo_vcamaf_0"},
 	{"ldo_vcamio_1"},
 	{"ldo_vcamio_0"},
 };
@@ -74,7 +76,7 @@ static enum IMGSENSOR_RETURN gpio_init(
 					pinctrl_lookup_state(
 						pgpio->ppinctrl,
 						str_pinctrl_name);
-			}
+			}	
 
 			if (pgpio->ppinctrl_state_cam[j][i] == NULL ||
 				IS_ERR(pgpio->ppinctrl_state_cam[j][i])) {

@@ -34,7 +34,12 @@ static const char *const mt6789_spk_type_str[] = {MTK_SPK_NOT_SMARTPA_STR,
 						  MTK_SPK_RICHTEK_RT5509_STR,
 						  MTK_SPK_MEDIATEK_MT6660_STR,
 						  MTK_SPK_RICHTEK_RT5512_STR,
-						  MTK_SPK_GOODIX_TFA98XX_STR};
+						  MTK_SPK_GOODIX_TFA98XX_STR,
+//prize add by lipengpeng 20220607 start
+						  MTK_SPK_AWINIC_AW883XX_STR
+//prize add by lipengpeng 20220607 end
+						  
+						  };
 static const char *const
 	mt6789_spk_i2s_type_str[] = {MTK_SPK_I2S_0_STR,
 				     MTK_SPK_I2S_1_STR,
@@ -1112,7 +1117,16 @@ int mtk_update_scp_audio_info(struct snd_soc_card *card,
 	return 0;
 }
 #endif
-
+//prize add by lipengpeng 20220615 start 
+struct snd_soc_dai_link_component awinic_codecs[] = 
+{ 
+ {
+  .of_node = NULL, 
+  .dai_name = "aw883xx-aif-6-34", 
+  .name = "aw883xx_smartpa.6-0034", 
+ }, 
+};
+//prize add by lipengpeng 20220615 end 
 static int mt6789_mt6366_dev_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &mt6789_mt6366_soc_card;
@@ -1156,21 +1170,29 @@ static int mt6789_mt6366_dev_probe(struct platform_device *pdev)
 			dai_link->platforms->of_node = platform_node;
 
 		if (!strcmp(dai_link->name, "Speaker Codec")) {
-			ret = snd_soc_of_get_dai_link_codecs(
-						&pdev->dev, spk_node, dai_link);
-			if (ret < 0) {
-				dev_err(&pdev->dev,
-					"Speaker Codec get_dai_link fail: %d\n", ret);
-				return -EINVAL;
-			}
+//prize add by lipengpeng 20220615 start 
+			//ret = snd_soc_of_get_dai_link_codecs(
+			//			&pdev->dev, spk_node, dai_link);
+			//if (ret < 0) {
+			//	dev_err(&pdev->dev,
+			//		"Speaker Codec get_dai_link fail: %d\n", ret);
+			//	return -EINVAL;
+			//}
+			dai_link->codecs = awinic_codecs;
+			//dai_link->num_codecs=2; //prize add by lipengpeng 20220615 start
+//prize add by lipengpeng 20220615 end 
 		} else if (!strcmp(dai_link->name, "Speaker Codec Ref")) {
-			ret = snd_soc_of_get_dai_link_codecs(
-						&pdev->dev, spk_node, dai_link);
-			if (ret < 0) {
-				dev_err(&pdev->dev,
-					"Speaker Codec Ref get_dai_link fail: %d\n", ret);
-				return -EINVAL;
-			}
+//prize add by lipengpeng 20220615 start 
+			dai_link->codecs = awinic_codecs;
+		//	dai_link->num_codecs=2; //prize add by lipengpeng 20220615 start
+			//ret = snd_soc_of_get_dai_link_codecs(
+			//			&pdev->dev, spk_node, dai_link);
+			//if (ret < 0) {
+			//	dev_err(&pdev->dev,
+			//		"Speaker Codec Ref get_dai_link fail: %d\n", ret);
+			//	return -EINVAL;
+			//}
+//prize add by lipengpeng 20220615 end
 		}
 	}
 

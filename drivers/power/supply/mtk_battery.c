@@ -286,10 +286,16 @@ static int battery_psy_get_property(struct power_supply *psy,
 	union power_supply_propval *val)
 {
 	int ret = 0;
-	int curr_now = 0, curr_avg = 0;
+	//int curr_now = 0, curr_avg = 0;
 	struct mtk_battery *gm;
 	struct battery_data *bs_data;
-
+	union power_supply_propval prop;
+	struct power_supply *bms_psy = NULL;
+	bms_psy = power_supply_get_by_name("bms");
+	if (IS_ERR_OR_NULL(bms_psy)) {
+		pr_err("%s Couldn't get bms_psy\n", __func__);
+	}
+	
 	gm = (struct mtk_battery *)power_supply_get_drvdata(psy);
 	bs_data = &gm->bs_data;
 
@@ -307,7 +313,7 @@ static int battery_psy_get_property(struct power_supply *psy,
 		val->intval = bs_data->bat_health;
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
-
+/*
 		ret = gauge_get_property(GAUGE_PROP_BATTERY_EXIST,
 			&bs_data->bat_present);
 
@@ -318,6 +324,13 @@ static int battery_psy_get_property(struct power_supply *psy,
 			gm->present = bs_data->bat_present;
 		}
 		ret = 0;
+*/
+		if (bms_psy) {
+			ret = power_supply_get_property(bms_psy, POWER_SUPPLY_PROP_PRESENT, &prop);
+			val->intval = prop.intval;
+		} else {
+			val->intval = 0;
+		}
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
 		val->intval = bs_data->bat_technology;
@@ -328,7 +341,7 @@ static int battery_psy_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		/* 1 = META_BOOT, 4 = FACTORY_BOOT 5=ADVMETA_BOOT */
 		/* 6= ATE_factory_boot */
-		if (gm->bootmode == 1 || gm->bootmode == 4
+		/*if (gm->bootmode == 1 || gm->bootmode == 4
 			|| gm->bootmode == 5 || gm->bootmode == 6) {
 			val->intval = 75;
 			break;
@@ -336,25 +349,49 @@ static int battery_psy_get_property(struct power_supply *psy,
 
 		if (gm->fixed_uisoc != 0xffff)
 			val->intval = gm->fixed_uisoc;
-		else
+		else{
 			val->intval = bs_data->bat_capacity;
+		*/
+			if (IS_ERR_OR_NULL(bms_psy)) {
+				pr_err("%s Couldn't get bms_psy\n", __func__);
+				val->intval = 0;
+			}
+			else{
+				ret = power_supply_get_property(bms_psy,POWER_SUPPLY_PROP_CAPACITY, &prop);
+				val->intval = prop.intval;
+				//pr_err("%s:%d\n", __func__,ret);
+			}	
+		//}
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		ret = gauge_get_property(GAUGE_PROP_BATTERY_CURRENT,
-			&curr_now);
+	/*
+		ret = gauge_get_property(GAUGE_PROP_BATTERY_CURRENT,&curr_now);
 
 		if (ret == -EHOSTDOWN)
 			val->intval = gm->ibat * 100;
 		else {
+
 			val->intval = curr_now * 100;
 			gm->ibat = curr_now;
-		}
+		*/	
+		#if 1
+			if (IS_ERR_OR_NULL(bms_psy)) {
+				pr_err("%s Couldn't get bms_psy\n", __func__);
+				val->intval = 0;
+			}
+			else{
+				ret = power_supply_get_property(bms_psy,POWER_SUPPLY_PROP_CURRENT_NOW, &prop);
+				val->intval = prop.intval;
+				gm->ibat = prop.intval / 100;
+			}
 
-		ret = 0;
+		#endif
+		//}
+		//ret = 0;
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_AVG:
-		ret = gauge_get_property(GAUGE_PROP_AVERAGE_CURRENT,
-			&curr_avg);
+	/*
+		ret = gauge_get_property(GAUGE_PROP_AVERAGE_CURRENT,&curr_avg);
 
 		if (ret == -EHOSTDOWN)
 			val->intval = gm->ibat * 100;
@@ -362,6 +399,19 @@ static int battery_psy_get_property(struct power_supply *psy,
 			val->intval = curr_avg * 100;
 
 		ret = 0;
+		*/
+		#if 1
+			if (IS_ERR_OR_NULL(bms_psy)) {
+				pr_err("%s Couldn't get bms_psy\n", __func__);
+				val->intval = 0;
+			}
+			else{
+				ret = power_supply_get_property(bms_psy,POWER_SUPPLY_PROP_CURRENT_NOW, &prop);
+				val->intval = prop.intval;
+				gm->ibat = prop.intval / 100;
+			}
+
+		#endif
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		val->intval =
@@ -376,7 +426,7 @@ static int battery_psy_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		/* 1 = META_BOOT, 4 = FACTORY_BOOT 5=ADVMETA_BOOT */
 		/* 6= ATE_factory_boot */
-		if (gm->bootmode == 1 || gm->bootmode == 4
+		/*if (gm->bootmode == 1 || gm->bootmode == 4
 			|| gm->bootmode == 5 || gm->bootmode == 6) {
 			val->intval = 4000000;
 			break;
@@ -393,14 +443,46 @@ static int battery_psy_get_property(struct power_supply *psy,
 		else {
 			gm->vbat = bs_data->bat_batt_vol;
 			val->intval = bs_data->bat_batt_vol * 1000;
+			#if 1
+			if (IS_ERR_OR_NULL(bms_psy)) {
+				pr_err("%s Couldn't get bms_psy\n", __func__);
+			}
+			else{
+				ret = power_supply_get_property(bms_psy,POWER_SUPPLY_PROP_VOLTAGE_NOW, &prop);
+				val->intval = prop.intval;
+				gm->vbat = prop.intval / 1000;
+			}
+			#endif
 		}
-		ret = 0;
+		ret = 0;*/
+		
+		#if 1
+			if (IS_ERR_OR_NULL(bms_psy)) {
+				pr_err("%s Couldn't get bms_psy\n", __func__);
+				val->intval = 0;
+			}
+			else{
+				ret = power_supply_get_property(bms_psy,POWER_SUPPLY_PROP_VOLTAGE_NOW, &prop);
+				val->intval = prop.intval;
+				gm->vbat = prop.intval / 1000;
+			}
+		#endif
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
 		val->intval = force_get_tbat(gm, true) * 10;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY_LEVEL:
-		val->intval = check_cap_level(bs_data->bat_capacity);
+		//val->intval = check_cap_level(bs_data->bat_capacity);
+		if (IS_ERR_OR_NULL(bms_psy)) {
+				pr_err("%s Couldn't get bms_psy\n", __func__);
+				val->intval = 0;
+			}
+			else{
+				ret = power_supply_get_property(bms_psy,POWER_SUPPLY_PROP_CAPACITY, &prop);
+				val->intval = prop.intval;
+				//pr_err("%s:%d\n", __func__,ret);
+				val->intval = check_cap_level(val->intval);
+			}	
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
 		/* full or unknown must return 0 */
@@ -585,7 +667,8 @@ static void mtk_battery_external_power_changed(struct power_supply *psy)
 			notify_fg_chr_full(gm);
 		} else
 			gm->b_EOC = false;
-
+		
+		pr_err("gezi %s------------------------%d\n", __func__,__LINE__);
 		battery_update(gm);
 
 		/* check charger type */
@@ -2121,8 +2204,7 @@ void battery_update(struct mtk_battery *gm)
 	struct power_supply *bat_psy = bat_data->psy;
 
 	if (gm->is_probe_done == false || bat_psy == NULL) {
-		bm_err("[%s]battery is not rdy:probe:%d\n",
-			__func__, gm->is_probe_done);
+		bm_err("[%s]battery is not rdy:probe:%d\n",__func__, gm->is_probe_done);
 		return;
 	}
 
@@ -2541,8 +2623,10 @@ int battery_get_property(enum battery_property bp,
 	struct power_supply *psy;
 
 	psy = power_supply_get_by_name("battery");
-	if (psy == NULL)
+	if (psy == NULL){
+		pr_err("gezi--------%s------get battery psy failed....\n",__func__);
 		return -ENODEV;
+	}
 
 	gm = (struct mtk_battery *)power_supply_get_drvdata(psy);
 	if (battery_sysfs_field_tbl[bp].prop == bp)
@@ -3089,7 +3173,21 @@ int next_waketime(int polling)
 	else
 		return 10;
 }
+static int get_sm5602_soc(struct mtk_battery *gm)
+{
+	int ret = 0;
+	union power_supply_propval prop;
+	
+	if (IS_ERR_OR_NULL(gm->bms_psy)) {
+		pr_err("%s Couldn't get bms_psy\n", __func__);
+		gm->bms_psy = power_supply_get_by_name("bms");
+	}
+	
+	ret = power_supply_get_property(gm->bms_psy,POWER_SUPPLY_PROP_CAPACITY, &prop);
+	 
+	return prop.intval;
 
+}
 static int shutdown_event_handler(struct mtk_battery *gm)
 {
 	ktime_t now, duraction;
@@ -3098,8 +3196,13 @@ static int shutdown_event_handler(struct mtk_battery *gm)
 	static int ui_zero_time_flag;
 	static int down_to_low_bat;
 	int now_current = 0;
+#if IS_ENABLED(CONFIG_BATTERY_SM5602)
+	int current_ui_soc = get_sm5602_soc(gm);
+	int current_soc = get_sm5602_soc(gm);
+#else
 	int current_ui_soc = gm->ui_soc;
 	int current_soc = gm->soc;
+#endif
 	int vbat = 0;
 	int tmp = 25;
 	struct shutdown_controller *sdd = &gm->sdc;
@@ -3568,6 +3671,13 @@ int battery_init(struct platform_device *pdev)
 		battery_algo_init(gm);
 		bm_err("[%s]: enable Kernel mode Gauge\n", __func__);
 	}
+	
+	gm->bms_psy = power_supply_get_by_name("bms");
+	
+	if (IS_ERR_OR_NULL(gm->bms_psy)) {
+		pr_err("%s Couldn't get bms_psy\n", __func__);
+	}
+	
 
 	return 0;
 }

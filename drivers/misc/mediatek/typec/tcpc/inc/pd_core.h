@@ -851,7 +851,11 @@ struct pd_country_authority {
 struct pd_port {
 	struct tcpc_device *tcpc;
 	struct mutex pd_lock;
-
+//prize add by lipengpeng 20220524 start 
+	/* miss msg */
+	bool miss_msg;
+	uint8_t rx_cap;
+//prize add by lipengpeng 20220524 end 
 	/* PD */
 	bool msg_output_lock;
 
@@ -1614,6 +1618,10 @@ enum {	/* pd_traffic_control */
 
 #define PD30_SINK_TX_OK		TYPEC_CC_RP_3_0
 #define PD30_SINK_TX_NG		TYPEC_CC_RP_1_5
+//prize add by lipengpeng 20220524 start
+void pd_add_miss_msg(struct pd_port *pd_port,struct pd_event *pd_event,
+				uint8_t msg);
+//prize add by lipengpeng 20220524 start
 
 void pd_set_sink_tx(struct pd_port *pd_port, uint8_t cc);
 void pd_sync_sop_spec_revision(struct pd_port *pd_port);

@@ -192,6 +192,22 @@ static inline void pm_wakeup_dev_event(struct device *dev, unsigned int msec,
 
 #endif /* !CONFIG_PM_SLEEP */
 
+//prize-To solve the problem of error report in the compilation of Duntai fingerprint, we should lack the interface wakeup_source_init-pengzhipeng-20201106-start
+
+static inline void wakeup_source_init(struct wakeup_source *ws,
+				      const char *name)
+{
+	wakeup_source_add(ws);
+}
+
+//prize-To solve the problem of error report in the compilation of Duntai fingerprint, we should lack the interface wakeup_source_trash-pengzhipeng-20201106-start
+
+static inline void wakeup_source_trash(struct wakeup_source *ws)
+{
+	wakeup_source_remove(ws);
+}
+
+//prize-To solve the problem of error report in the compilation of Duntai fingerprint, we should lack the interface wakeup_source_trash-pengzhipeng-20201106-start
 static inline void __pm_wakeup_event(struct wakeup_source *ws, unsigned int msec)
 {
 	return pm_wakeup_ws_event(ws, msec, false);

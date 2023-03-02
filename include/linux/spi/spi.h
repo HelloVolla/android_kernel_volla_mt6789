@@ -1578,3 +1578,8 @@ of_find_spi_device_by_node(struct device_node *node)
 #define spi_unregister_master(_ctlr)	spi_unregister_controller(_ctlr)
 
 #endif /* __LINUX_SPI_H */
+
+//prize add by lipengpeng 20220630 start 
+extern void mt_spi_enable_master_clk(struct spi_device *ms);
+extern void mt_spi_disable_master_clk(struct spi_device *ms);
+//prize add by lipengpeng 20220630 end 
