@@ -40,11 +40,11 @@
 #define FAULT_LED1_SHORT_CIRCUIT	(1<<4)
 
 /*  FLASH Brightness
- *	min 10900uA, step 11725uA, max 1500000uA
+ *	min 3910uA, step 7830uA, max 1006150uA
  */
-#define LM3643_FLASH_BRT_MIN 10900
-#define LM3643_FLASH_BRT_STEP 11725
-#define LM3643_FLASH_BRT_MAX 1499975
+#define LM3643_FLASH_BRT_MIN 3910
+#define LM3643_FLASH_BRT_STEP 7830
+#define LM3643_FLASH_BRT_MAX 1006150
 #define LM3643_FLASH_BRT_uA_TO_REG(a)	\
 	((a) < LM3643_FLASH_BRT_MIN ? 0 :	\
 	 (((a) - LM3643_FLASH_BRT_MIN) / LM3643_FLASH_BRT_STEP))
@@ -59,11 +59,11 @@
 #define LM3643_FLASH_TOUT_MAX 400
 
 /*  TORCH BRT
- *	min 977uA, step 1400uA, max 179000uA
+ *	min 980uA, step 1960uA, max 126420uA
  */
-#define LM3643_TORCH_BRT_MIN 977
-#define LM3643_TORCH_BRT_STEP 1400
-#define LM3643_TORCH_BRT_MAX 179000
+#define LM3643_TORCH_BRT_MIN 980
+#define LM3643_TORCH_BRT_STEP 1960
+#define LM3643_TORCH_BRT_MAX 126420
 #define LM3643_TORCH_BRT_uA_TO_REG(a)	\
 	((a) < LM3643_TORCH_BRT_MIN ? 0 :	\
 	 (((a) - LM3643_TORCH_BRT_MIN) / LM3643_TORCH_BRT_STEP))
@@ -75,9 +75,20 @@ static const int flash_state_to_current_limit[LM3643_COOLER_MAX_STATE] = {
 	150000, 100000, 50000, 25000
 };
 
-/* define mutex and work queue */
-static DEFINE_MUTEX(lm3643_mutex);
+/* prize modify by zhuzhengjiang for torch/flash 20210813 start */
+#define  LM3643_LEVEL_NUM 26
+// torch:duty * 1.96 + 0.98 MAX:126MA
+static const unsigned char lm3643_torch_level[LM3643_LEVEL_NUM] = {
+	0x0a, 0x13, 0x1c, 0x25, 0x2e, 0x37, 0x40, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
+// flash:duty * 7.83 + 3.91   MAX:1A
+static const unsigned char lm3643_flash_level[LM3643_LEVEL_NUM] = {
+	0x03, 0x08, 0x0d, 0x12, 0x17, 0x1c, 0x21, 0x26, 0x2b, 0x30,
+	0x35, 0x3a, 0x3f, 0x44, 0x49, 0x4e, 0x53, 0x58, 0x5d, 0x62,
+	0x67, 0x7c, 0x71, 0x76, 0x7b, 0x80};
+/* prize modify by zhuzhengjiang for torch/flash 20210813 end */ 
 enum lm3643_led_id {
 	LM3643_LED0 = 0,
 	LM3643_LED1,
@@ -259,8 +270,15 @@ static int lm3643_enable_ctrl(struct lm3643_flash *flash,
 		pr_info_ratelimited("pt is low\n");
 		return 0;
 	}
+	if(on){
+		rval = regmap_update_bits(flash->regmap, REG_ENABLE, 0x01, 0x01);
+		rval |= regmap_update_bits(flash->regmap, REG_ENABLE, 0x02, 0x02);
+	} else {
+		rval = regmap_update_bits(flash->regmap, REG_ENABLE, 0x01, 0x00);
+		rval |= regmap_update_bits(flash->regmap, REG_ENABLE, 0x02, 0x00);
+	}
 
-	if (led_no == LM3643_LED0) {
+/*	if (led_no == LM3643_LED0) {
 		if (on)
 			rval = regmap_update_bits(flash->regmap,
 						  REG_ENABLE, 0x01, 0x01);
@@ -274,7 +292,7 @@ static int lm3643_enable_ctrl(struct lm3643_flash *flash,
 		else
 			rval = regmap_update_bits(flash->regmap,
 						  REG_ENABLE, 0x02, 0x00);
-	}
+	}*/
 	return rval;
 }
 
@@ -282,7 +300,7 @@ static int lm3643_enable_ctrl(struct lm3643_flash *flash,
 static int lm3643_torch_brt_ctrl(struct lm3643_flash *flash,
 				 enum lm3643_led_id led_no, unsigned int brt)
 {
-	int rval;
+	int rval, i;
 	u8 br_bits;
 
 	if (led_no < 0 || led_no >= LM3643_LED_MAX) {
@@ -303,13 +321,20 @@ static int lm3643_torch_brt_ctrl(struct lm3643_flash *flash,
 	}
 
 	br_bits = LM3643_TORCH_BRT_uA_TO_REG(brt);
-	if (led_no == LM3643_LED0)
+	for (i = 0; i < LM3643_LEVEL_NUM; i++) {
+		if (br_bits <= lm3643_torch_level[i])
+			break;
+	}
+	br_bits = lm3643_torch_level[i];
+	rval = regmap_update_bits(flash->regmap, REG_LED0_TORCH_BR, 0xff, br_bits);
+	rval |= regmap_update_bits(flash->regmap, REG_LED1_TORCH_BR, 0xff, br_bits);
+/*	if (led_no == LM3643_LED0)
 		rval = regmap_update_bits(flash->regmap,
-					  REG_LED0_TORCH_BR, 0x7f, br_bits);
+					  REG_LED0_TORCH_BR, 0xff, br_bits);
 	else
 		rval = regmap_update_bits(flash->regmap,
-					  REG_LED1_TORCH_BR, 0x7f, br_bits);
-
+					  REG_LED1_TORCH_BR, 0xff, br_bits);
+*/
 	return rval;
 }
 
@@ -317,7 +342,7 @@ static int lm3643_torch_brt_ctrl(struct lm3643_flash *flash,
 static int lm3643_flash_brt_ctrl(struct lm3643_flash *flash,
 				 enum lm3643_led_id led_no, unsigned int brt)
 {
-	int rval;
+	int rval, i;
 	u8 br_bits;
 
 	if (led_no < 0 || led_no >= LM3643_LED_MAX) {
@@ -334,13 +359,22 @@ static int lm3643_flash_brt_ctrl(struct lm3643_flash *flash,
 	}
 
 	br_bits = LM3643_FLASH_BRT_uA_TO_REG(brt);
-	if (led_no == LM3643_LED0)
+	
+	for (i = 0; i < LM3643_LEVEL_NUM; i++) {
+		if (br_bits <= lm3643_flash_level[i])
+			break;
+	}
+	br_bits = lm3643_flash_level[i];
+	
+	rval = regmap_update_bits(flash->regmap, REG_LED0_FLASH_BR, 0x7f, br_bits);
+	rval |= regmap_update_bits(flash->regmap, REG_LED1_FLASH_BR, 0x7f, br_bits);
+/*	if (led_no == LM3643_LED0)
 		rval = regmap_update_bits(flash->regmap,
 					  REG_LED0_FLASH_BR, 0x7f, br_bits);
 	else
 		rval = regmap_update_bits(flash->regmap,
 					  REG_LED1_FLASH_BR, 0x7f, br_bits);
-
+*/
 	return rval;
 }
 
@@ -751,7 +785,11 @@ static int lm3643_ioctl(unsigned int cmd, unsigned long arg)
 			}
 		}
 		break;
-	default:
+    case FLASH_IOC_SET_DUTY:
+        pr_info("FLASH_IOC_SET_DUTY(%d): %d\n", channel, (int)fl_arg->arg);
+        lm3643_torch_brt_ctrl(lm3643_flash_data, channel, LM3643_TORCH_BRT_REG_TO_uA(lm3643_torch_level[(int)fl_arg->arg]));
+        break;
+    default:
 		pr_info("No such command and arg(%d): (%d, %d)\n",
 				channel, _IOC_NR(cmd), (int)fl_arg->arg);
 		return -ENOTTY;
@@ -765,7 +803,7 @@ static int lm3643_set_driver(int set)
 	int ret = 0;
 
 	/* set chip and usage count */
-	mutex_lock(&lm3643_mutex);
+	//mutex_lock(&lm3643_mutex);
 	if (set) {
 		if (!use_count)
 			ret = lm3643_init(lm3643_flash_data);
@@ -779,7 +817,7 @@ static int lm3643_set_driver(int set)
 			use_count = 0;
 		pr_debug("Unset driver: %d\n", use_count);
 	}
-	mutex_unlock(&lm3643_mutex);
+	//mutex_unlock(&lm3643_mutex);
 
 	return 0;
 }

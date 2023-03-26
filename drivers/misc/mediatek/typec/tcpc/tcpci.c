@@ -398,6 +398,17 @@ int tcpci_is_vsafe0v(struct tcpc_device *tcpc)
 }
 EXPORT_SYMBOL(tcpci_is_vsafe0v);
 #endif /* CONFIG_TCPC_VSAFE0V_DETECT_IC */
+//prize add by lipengpeng 20220530 start
+int tcpci_get_chip_id(struct tcpc_device *tcpc, uint32_t *chip_id)
+{
+	if (tcpc->ops->get_chip_id == NULL)
+		return -ENOTSUPP;
+	else
+		tcpc->ops->get_chip_id(tcpc, chip_id);
+
+	return 0;
+}
+//prize add by lipengpeng 20220530 end
 
 #if CONFIG_WATER_DETECTION
 int tcpci_is_water_detected(struct tcpc_device *tcpc)

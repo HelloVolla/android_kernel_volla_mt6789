@@ -211,8 +211,8 @@ static struct imgsensor_info_struct imgsensor_info = {
 	/* record sensor support all write id addr,
 	 * only supprt 4must end with 0xff
 	 */
-	.i2c_addr_table = {0x20, 0xff},
-	.i2c_speed = 1000,	/* i2c read/write speed */
+	.i2c_addr_table = {0x20, 0x34, 0xff},
+	.i2c_speed = 400,	/* i2c read/write speed */
 };
 
 
@@ -237,7 +237,7 @@ static struct imgsensor_struct imgsensor = {
 	/* current scenario id */
 	.current_scenario_id = MSDK_SCENARIO_ID_CAMERA_PREVIEW,
 	.hdr_mode = 0,/* sensor need support LE, SE with HDR feature */
-	.i2c_write_id = 0x20,/* record current sensor's i2c write id */
+	.i2c_write_id = 0x34,/* record current sensor's i2c write id */
 };
 
 

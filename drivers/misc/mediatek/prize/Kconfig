@@ -1,0 +1,65 @@
+config PRIZE_DRIVER_SUPPORT
+	tristate "STMicroelectronics NFC driver solution"
+	help
+	  STMicroelectronics Near Field Communication controller support.
+	  It is the master switch of STMicroelectronics NFC controller drivers.
+	  If configures to be y, NFC_ST21NFC and NFC_ST54_SPI will be
+	  selected.
+
+config CAMERA_GC0301
+	tristate "STMicroelectronics NFC driver solution - NFC Controller Driver"
+	default n
+	help
+	  STMicroelectronics CAMERA_GC0301 Near Field Communication controller
+	  functionality. If configures to be n, means devices doesn't support
+	  NFC functionality.
+
+config PRIZE_FM
+	tristate "priz fm"
+	default m
+	help
+	  PRIZE_FM. If configures to be n, means devices doesn't support
+	  NFC functionality.
+
+config PRIZE_AW2016A
+	tristate "priz AW2016A"
+	default n
+	help
+	  PRIZE_FM. If configures to be n, means devices doesn't support
+	  AW2016A functionality.
+	  
+config LEDS_AW210XX
+	tristate "LED Support for AW210XX"
+	depends on LEDS_CLASS && I2C
+	help
+	  this option enables support for the AW210XXRGB LED connected
+	  through I2C. Say Y to enable support for the AW210XX LED
+	  light automatically.
+
+#liaojie prize exergen 20210128 start
+config PRIZE_EXERGEN
+        tristate "prize exergen for Mediatek package"
+		depends on I2C
+        help
+          Say y here if you have prize exergen.
+          If unsure, say N.
+
+config PRIZE_EXERGEN_SELECT_LIST
+		string "sensor type"
+		help
+		Say y here if you have prize exergen.
+		If unsure, say N.
+#liaojie prize exergen 20210128 end
+config PRIZE_HARDWARE_INFO
+	tristate "hardware_info"
+	default n
+	help
+	  hardware_info. If configures to be n, means devices doesn't support
+	  hardwareinfo functionality.
+#hjw 
+config PRIZE_TYPEC_POSITIVE_NEGATIVE
+	tristate "typec pt ne"
+	default n
+	help
+	  hardware_info. If configures to be n, means devices doesn't support
+	  hardwareinfo functionality.

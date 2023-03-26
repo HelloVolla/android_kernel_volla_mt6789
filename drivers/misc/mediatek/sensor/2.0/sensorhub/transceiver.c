@@ -223,6 +223,8 @@ static void transceiver_update_config(struct transceiver_device *dev,
 	mutex_unlock(&dev->config_lock);
 }
 
+extern uint32_t *awinic_get_global_val(void);
+
 static void transceiver_report(struct transceiver_device *dev,
 		struct hf_manager_event *event)
 {
@@ -273,6 +275,14 @@ static void transceiver_report(struct transceiver_device *dev,
 	} while (ret < 0);
 }
 
+/* awinic bob add start */
+//uint32_t awinic_debug_data[3];
+//EXPORT_SYMBOL_GPL(awinic_debug_data);
+//uint32_t awinic_debug_data_0;
+//uint32_t awinic_debug_data_1;
+//uint32_t awinic_debug_data_2;
+
+/* awinic bob add end */
 static int transceiver_translate(struct transceiver_device *dev,
 		struct hf_manager_event *dst,
 		const struct share_mem_data *src)
@@ -337,6 +347,17 @@ static int transceiver_translate(struct transceiver_device *dev,
 			dst->word[0] = src->value[0];
 			break;
 		default:
+			//awinic bob add
+			if (src->sensor_type == SENSOR_TYPE_SAR) {
+				if (src->value[0] == 0xff) {
+					uint32_t *awinic_debug_data = awinic_get_global_val();
+					awinic_debug_data[0] = src->value[0];
+					awinic_debug_data[1] = src->value[1];
+					awinic_debug_data[2] = src->value[2];
+				}
+				pr_info("sar value[0]:%x,value[1]:%x,value[2]:%x",
+					src->value[0], src->value[1], src->value[2]);
+			}
 			memcpy(dst->word, src->value,
 				min(sizeof(dst->word), sizeof(src->value)));
 			break;
@@ -350,6 +371,16 @@ static int transceiver_translate(struct transceiver_device *dev,
 		 * BIAS_ACTION, CALI_ACTION, TEMP_ACTION,
 		 * TEST_ACTION and RAW_ACTION
 		 */
+		 //awinic bob add start
+		if (src->sensor_type == SENSOR_TYPE_SAR) {
+			uint32_t *awinic_debug_data = awinic_get_global_val();
+			awinic_debug_data[0] = src->value[0];
+			awinic_debug_data[1] = src->value[1];
+			awinic_debug_data[2] = src->value[2];
+			pr_info("sar RAW_ACTION value[0]:%x,value[1]:%x,value[2]:%x",
+				src->value[0], src->value[1], src->value[2]);
+		}
+		//awinic bob add end
 		dst->timestamp = remap_timestamp;
 		dst->sensor_type = src->sensor_type;
 		dst->accurancy = src->accurancy;
@@ -518,16 +549,14 @@ static int transceiver_comm_with(int sensor_type, int cmd,
 {
 	int ret = 0;
 	struct sensor_comm_ctrl *ctrl = NULL;
-	uint32_t ctrl_size = 0;
 
-	ctrl_size = ipi_comm_size(sizeof(*ctrl) + length);
-	ctrl = kzalloc(ctrl_size, GFP_KERNEL);
+	ctrl = kzalloc(sizeof(*ctrl) + length, GFP_KERNEL);
 	ctrl->sensor_type = sensor_type;
 	ctrl->command = cmd;
 	ctrl->length = length;
 	if (length)
 		memcpy(ctrl->data, data, length);
-	ret = sensor_comm_ctrl_send(ctrl, ctrl_size);
+	ret = sensor_comm_ctrl_send(ctrl, sizeof(*ctrl) + ctrl->length);
 	kfree(ctrl);
 	return ret;
 }

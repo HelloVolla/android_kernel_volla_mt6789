@@ -613,8 +613,10 @@ static void vow_service_Init(void)
 			vowserv.vow_speaker_model[I].flag = 0;
 			vowserv.vow_speaker_model[I].enabled = 0;
 		}
+		/* extra data memory locate */
 		mutex_lock(&vow_extradata_mutex);
-		vowserv.extradata_mem_ptr = NULL;
+		if (vowserv.extradata_mem_ptr == NULL)
+			vowserv.extradata_mem_ptr = vmalloc(VOW_EXTRA_DATA_SIZE);
 		mutex_unlock(&vow_extradata_mutex);
 		vowserv.extradata_bytelen = 0;
 #if IS_ENABLED(CONFIG_MTK_VOW_1STSTAGE_PCMCALLBACK)
@@ -643,9 +645,9 @@ static void vow_service_Init(void)
 		vow_pcm_dump_init();
 		vowserv.scp_dual_mic_switch = VOW_ENABLE_DUAL_MIC;
 		vowserv.mtkif_type = 0;
-		//set default value to platform identifier and version
+		/* set meaningless default value to platform identifier and version */
 		memset(vowserv.google_engine_arch, 0, VOW_ENGINE_INFO_LENGTH_BYTE);
-		if (sprintf(vowserv.google_engine_arch, "32fe89be-5205-3d4b-b8cf-55d650d9d200") < 0)
+		if (sprintf(vowserv.google_engine_arch, "12345678-1234-1234-1234-123456789012") < 0)
 			VOWDRV_DEBUG("%s(), sprintf fail", __func__);
 		vowserv.google_engine_version = DEFAULT_GOOGLE_ENGINE_VER;
 		memset(vowserv.alexa_engine_version, 0, VOW_ENGINE_INFO_LENGTH_BYTE);
@@ -1239,14 +1241,6 @@ static bool vow_service_Enable(void)
 	bool ret = false;
 
 	VOWDRV_DEBUG("+%s()\n", __func__);
-
-	/* extra data memory locate */
-	mutex_lock(&vow_extradata_mutex);
-	if (vowserv.extradata_mem_ptr == NULL) {
-		vowserv.extradata_mem_ptr =
-		    vmalloc(VOW_EXTRA_DATA_SIZE);
-	}
-	mutex_unlock(&vow_extradata_mutex);
 #ifdef VOW_PMIC_VERSION_CHK
 	if (pmic_6366_version == VOW_PMIC_6366_E1)
 		ret = vow_ipi_send(IPIMSG_VOW_PMIC_EFUSE_VER,
@@ -1273,14 +1267,6 @@ static bool vow_service_Disable(void)
 			   0,
 			   NULL,
 			   VOW_IPI_BYPASS_ACK);
-
-	/* extra data memory release */
-	mutex_lock(&vow_extradata_mutex);
-	if (vowserv.extradata_mem_ptr != NULL) {
-		vfree(vowserv.extradata_mem_ptr);
-		vowserv.extradata_mem_ptr = NULL;
-	}
-	mutex_unlock(&vow_extradata_mutex);
 
 	/* release lock */
 	if (vowserv.suspend_lock == 1) {
@@ -1586,7 +1572,7 @@ static void vow_service_GetVowDumpData(void)
 			}
 
 			if (((temp_dump_info.user_dump_idx + idx) > temp_dump_info.user_dump_size)
-				&& (temp_dump_info.user_dump_idx < temp_dump_info.user_dump_size)) {
+			   && (temp_dump_info.user_dump_idx <= temp_dump_info.user_dump_size)) {
 				size = temp_dump_info.user_dump_size -
 						 temp_dump_info.user_dump_idx;
 			} else {
@@ -2746,7 +2732,7 @@ static long VowDrv_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		break;
 #if IS_ENABLED(CONFIG_MTK_VOW_1STSTAGE_PCMCALLBACK)
 	case VOW_SET_PAYLOADDUMP_INFO: {
-		struct vow_payloaddump_info_t payload;
+		struct vow_payloaddump_info_t payload = NULL;
 
 		copy_from_user((void *)&payload,
 				 (const void __user *)arg,
@@ -2758,6 +2744,10 @@ static long VowDrv_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 			     (unsigned int)payload.return_payloaddump_addr,
 			     (unsigned int)payload.max_payloaddump_size);
 			return false;
+		}
+		if (payload.return_payloaddump_size_addr != 0) {
+			VOWDRV_DEBUG("vow size_addr_%x\n",
+			     (unsigned int)payload.return_payloaddump_size_addr);
 		}
 		vowserv.payloaddump_user_addr =
 		    payload.return_payloaddump_addr;
@@ -2984,12 +2974,12 @@ static ssize_t VowDrv_read(struct file *fp,
 		  vowserv.scp_command_keywordid);
 	if (slot < 0) {
 		/* there is no pair id */
-		VOWDRV_DEBUG("%s(), search ID fail, not keyword event, exit\n", __func__);
+		VOWDRV_DEBUG("%s(), search ID fail, not keyword event, eint=%d, exit\n",
+						__func__,
+						VowDrv_QueryVowEINTStatus());
 		vowserv.scp_command_id =  0;
-		if (VowDrv_QueryVowEINTStatus() == 0) { //VOW_EINT_PASS
-			VOWDRV_DEBUG("%s(), vow is resetting...\n", __func__);
-			return -1;
-		}
+		vowserv.confidence_level = 0;
+		goto exit;
 	} else {
 		vowserv.scp_command_id = vowserv.vow_speaker_model[slot].id;
 	}
@@ -3335,8 +3325,9 @@ static struct platform_driver VowDrv_driver = {
 static int vow_nvmem_device_probe(struct platform_device *pdev)
 {
 	struct nvmem_device *nvmem;
-	int ret;
-	int ver_reg, ver_mask;
+	int ret = -1;
+	int ver_reg = -1;
+	int ver_mask = -1;
 
 	nvmem = devm_nvmem_device_get(&pdev->dev, "vow_efuse_device");
 	if (PTR_ERR(nvmem) == -EPROBE_DEFER)
@@ -3466,6 +3457,13 @@ static void __exit VowDrv_mod_exit(void)
 	wakeup_source_unregister(vow_suspend_lock);
 	wakeup_source_unregister(vow_ipi_suspend_lock);
 	vow_pcm_dump_deinit();
+	/* extra data memory release */
+	mutex_lock(&vow_extradata_mutex);
+	if (vowserv.extradata_mem_ptr != NULL) {
+		vfree(vowserv.extradata_mem_ptr);
+		vowserv.extradata_mem_ptr = NULL;
+	}
+	mutex_unlock(&vow_extradata_mutex);
 	VOWDRV_DEBUG("-%s()\n", __func__);
 }
 module_init(VowDrv_mod_init);

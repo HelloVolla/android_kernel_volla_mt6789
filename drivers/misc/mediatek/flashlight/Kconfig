@@ -74,7 +74,18 @@ config MTK_FLASHLIGHT_LM3644
 	  Select this only if your board has this IC.
 
 	  Say M here if you want to compile this driver as a module.
+#prize add b ylipengpeng 20220608 start 
+config MTK_FLASHLIGHT_AW36518
+	tristate "Mediatek flashlight with driver IC (TI AW36518)"
+	help
+	  This is for the flashlight driver IC (TI AW36518).
 
+	  Say Y here if you want a flashlight driver IC AW36518.
+	  Select this only if your board has this IC.
+
+	  Say M here if you want to compile this driver as a module.
+#prize add b ylipengpeng 20220608 end 
+	  
 config MTK_FLASHLIGHT_RT4505
 	tristate "Mediatek flashlight with driver IC (Richtek RT4505)"
 	depends on MTK_FLASHLIGHT

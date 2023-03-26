@@ -361,7 +361,10 @@ static inline void on_pe_timer_timeout(
 		struct tcpc_device *tcpc, uint32_t timer_id)
 {
 	struct pd_event pd_event = {0};
-
+//prize add by lipengpeng 20220530 start	
+	int rv = 0;
+	uint32_t chip_id = 0;
+//prize add by lipengpeng 20220530 end
 	pd_event.event_type = PD_EVT_TIMER_MSG;
 	pd_event.msg = timer_id;
 	pd_event.pd_msg = NULL;
@@ -416,6 +419,15 @@ static inline void on_pe_timer_timeout(
 	case PD_TIMER_PE_IDLE_TOUT:
 		TCPC_INFO("pe_idle tout\n");
 		pd_put_pe_event(&tcpc->pd_port, PD_PE_IDLE);
+//prize add by lipengpeng 20220530 start
+		break;
+		
+	case PD_TIMER_HARD_RESET_COMPLETE:
+		rv = tcpci_get_chip_id(tcpc, &chip_id);
+		if (!rv && (SC2150A_DID == chip_id || chip_id == SC2150B_DID)) {
+			pd_put_sent_hard_reset_event(tcpc);
+		}
+//prize add by lipengpeng 20220530 end
 		break;
 
 	default:

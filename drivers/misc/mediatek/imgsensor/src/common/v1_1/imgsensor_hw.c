@@ -11,16 +11,17 @@
 
 #include "imgsensor_sensor.h"
 #include "imgsensor_hw.h"
-
+int curr_sensor_id;// prize add by zhuzhengjiang for camera 20220110 start
+int last_sensor_idx; // prize add by zhuzhengjiang for  switch camera slow
 /*the index is consistent with enum IMGSENSOR_HW_PIN*/
 char * const imgsensor_hw_pin_names[] = {
 	"none",
-	"pdn",
+	"pnd",//prize modify by linchong 20220613 start
 	"rst",
 	"vcama",
 	"vcama1",
-	"vcamaf",
 	"vcamd",
+	"vcamaf",//prize add by linchong 20220615 
 	"vcamio",
 	"mipi_switch_en",
 	"mipi_switch_sel",
@@ -71,7 +72,7 @@ enum IMGSENSOR_RETURN imgsensor_hw_init(struct IMGSENSOR_HW *phw)
 					IS_MT6779(phw->g_platform_id))
 					pcust_pwr_cfg->i2c_dev = IMGSENSOR_I2C_DEV_1;
 				else
-					pcust_pwr_cfg->i2c_dev = IMGSENSOR_I2C_DEV_2;
+					pcust_pwr_cfg->i2c_dev = IMGSENSOR_I2C_DEV_1;//prize modify by linchong 20220613
 			}
 			break;
 		case IMGSENSOR_SENSOR_IDX_SUB2:
@@ -224,7 +225,7 @@ static enum IMGSENSOR_RETURN imgsensor_hw_power_sequence(
 		return IMGSENSOR_RETURN_SUCCESS;
 	}
 #endif
-
+    curr_sensor_id = sensor_idx; // prize add by zhuzhengjiang for camera 20220110 start
 	while (ppwr_seq < ppower_sequence + IMGSENSOR_HW_SENSOR_MAX_NUM &&
 		ppwr_seq->name != NULL) {
 		if (!strcmp(ppwr_seq->name, PLATFORM_POWER_SEQ_NAME)) {
@@ -267,7 +268,11 @@ static enum IMGSENSOR_RETURN imgsensor_hw_power_sequence(
 							ppwr_info->pin_state_on);
 				}
 			}
-
+			/*prize add by zhuzhengjiang for  switch camera slow start*/
+			if(ppwr_info->pin == IMGSENSOR_HW_PIN_MCLK){
+				last_sensor_idx = sensor_idx;
+			}
+			/*prize add by zhuzhengjiang for  switch camera slow end*/
 			mdelay(ppwr_info->pin_on_delay);
 		}
 
@@ -291,7 +296,19 @@ static enum IMGSENSOR_RETURN imgsensor_hw_power_sequence(
 						ppwr_info->pin,
 						ppwr_info->pin_state_off,
 						ppwr_info->pin_on_delay);
-
+					/*prize add by zhuzhengjiang for  switch camera slow start*/
+					if (last_sensor_idx != sensor_idx  && (ppwr_info->pin == IMGSENSOR_HW_PIN_DOVDD)) {
+						printk("it is iovdd, don't set again, becase all camera share iovdd\n");
+						continue;
+					}
+                    
+					if((last_sensor_idx != sensor_idx) && (sensor_idx != 1) && (last_sensor_idx != 1)
+					&& (ppwr_info->pin == IMGSENSOR_HW_PIN_AFVDD)) {
+						printk("it is afvdd, don't set again, main and wide cam share afvdd pin\n");
+						continue;
+					}
+					
+					/*prize add by zhuzhengjiang for  switch camera slow end*/
 					if (pdev->set != NULL)
 						pdev->set(
 							pdev->pinstance,

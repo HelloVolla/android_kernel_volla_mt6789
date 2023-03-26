@@ -151,7 +151,17 @@ void pe_snk_ready_entry(struct pd_port *pd_port)
 
 void pe_snk_hard_reset_entry(struct pd_port *pd_port)
 {
+//prize add by lipengpeng 20220530 start
+	int rv = 0;
+	uint32_t chip_id = 0;
+//prize add by lipengpeng 20220530 end
 	pd_send_hard_reset(pd_port);
+//prize add by lipengpeng 20220530 start
+	rv = tcpci_get_chip_id(pd_port->tcpc, &chip_id);
+	if (!rv &&  (SC2150A_DID == chip_id || chip_id == SC2150B_DID)) {
+		pd_enable_timer(pd_port,PD_TIMER_HARD_RESET_COMPLETE);
+	}
+//prize add by lipengpeng 20220530 end	
 }
 
 void pe_snk_transition_to_default_entry(struct pd_port *pd_port)

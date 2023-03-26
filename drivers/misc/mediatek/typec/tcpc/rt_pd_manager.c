@@ -12,7 +12,10 @@
 #include <linux/usb/typec_mux.h>
 
 #include "inc/tcpci_typec.h"
-#if IS_ENABLED(CONFIG_MTK_CHARGER)
+//prize add by lipengpeng 20220530 start
+#if 0
+//#if IS_ENABLED(CONFIG_MTK_CHARGER)
+//prize add by lipengpeng 20220530 end
 #include <charger_class.h>
 #endif /* CONFIG_MTK_CHARGER */
 
@@ -41,7 +44,10 @@ struct typec_port {
 
 struct rt_pd_manager_data {
 	struct device *dev;
-#if IS_ENABLED(CONFIG_MTK_CHARGER)
+//prize add by lipengpeng 20220530 start	
+#if 0
+//#if IS_ENABLED(CONFIG_MTK_CHARGER)
+////prize add by lipengpeng 20220530 end
 	struct charger_device *chg_dev;
 #if CONFIG_WATER_DETECTION
 	struct power_supply *chg_psy;
@@ -81,7 +87,10 @@ static int pd_tcp_notifier_call(struct notifier_block *nb,
 	uint32_t partner_vdos[VDO_MAX_NR];
 	struct typec_mux_state state;
 #if CONFIG_WATER_DETECTION
-#if IS_ENABLED(CONFIG_MTK_CHARGER)
+//prize add by lipengpeng 20220530 start	
+#if 0
+//#if IS_ENABLED(CONFIG_MTK_CHARGER)
+////prize add by lipengpeng 20220530 end
 	union power_supply_propval val = {.intval = 0};
 #endif /* CONFIG_MTK_CHARGER */
 #endif /* CONFIG_WATER_DETECTION */
@@ -289,7 +298,10 @@ static int pd_tcp_notifier_call(struct notifier_block *nb,
 	case TCP_NOTIFY_EXT_DISCHARGE:
 		dev_info(rpmd->dev, "%s ext discharge = %d\n",
 				    __func__, noti->en_state.en);
-#if IS_ENABLED(CONFIG_MTK_CHARGER)
+//prize add by lipengpeng 20220530 start	
+#if 0
+//#if IS_ENABLED(CONFIG_MTK_CHARGER)
+////prize add by lipengpeng 20220530 end
 		charger_dev_enable_discharge(rpmd->chg_dev, noti->en_state.en);
 #endif /* CONFIG_MTK_CHARGER */
 		break;
@@ -332,7 +344,10 @@ static int pd_tcp_notifier_call(struct notifier_block *nb,
 				break;
 			dev_info(rpmd->dev, "%s Water is detected in KPOC\n",
 					    __func__);
-#if IS_ENABLED(CONFIG_MTK_CHARGER)
+//prize add by lipengpeng 20220530 start	
+#if 0
+//#if IS_ENABLED(CONFIG_MTK_CHARGER)
+////prize add by lipengpeng 20220530 end
 			val.intval = 0;
 			power_supply_set_property(rpmd->chg_psy,
 						  POWER_SUPPLY_PROP_VOLTAGE_MAX,
@@ -344,7 +359,10 @@ static int pd_tcp_notifier_call(struct notifier_block *nb,
 				break;
 			dev_info(rpmd->dev, "%s Water is removed in KPOC\n",
 					    __func__);
-#if IS_ENABLED(CONFIG_MTK_CHARGER)
+//prize add by lipengpeng 20220530 start	
+#if 0
+//#if IS_ENABLED(CONFIG_MTK_CHARGER)
+////prize add by lipengpeng 20220530 end
 			val.intval = 1;
 			power_supply_set_property(rpmd->chg_psy,
 						  POWER_SUPPLY_PROP_VOLTAGE_MAX,
@@ -600,7 +618,10 @@ static int rt_pd_manager_probe(struct platform_device *pdev)
 
 	rpmd->dev = &pdev->dev;
 
-#if IS_ENABLED(CONFIG_MTK_CHARGER)
+//prize add by lipengpeng 20220530 start	
+#if 0
+//#if IS_ENABLED(CONFIG_MTK_CHARGER)
+////prize add by lipengpeng 20220530 end
 	rpmd->chg_dev = get_charger_by_name("primary_chg");
 	if (!rpmd->chg_dev) {
 		dev_notice(rpmd->dev, "%s get chg dev fail\n", __func__);
@@ -663,7 +684,10 @@ err_reg_tcpc_notifier:
 	typec_unregister_port(rpmd->typec_port);
 err_init_typec:
 err_get_tcpc_dev:
-#if IS_ENABLED(CONFIG_MTK_CHARGER)
+//prize add by lipengpeng 20220530 start	
+#if 0
+//#if IS_ENABLED(CONFIG_MTK_CHARGER)
+////prize add by lipengpeng 20220530 end
 #if CONFIG_WATER_DETECTION
 	power_supply_put(rpmd->chg_psy);
 err_get_chg_psy:
@@ -688,7 +712,10 @@ static int rt_pd_manager_remove(struct platform_device *pdev)
 				      __func__, ret);
 
 	typec_unregister_port(rpmd->typec_port);
-#if IS_ENABLED(CONFIG_MTK_CHARGER)
+//prize add by lipengpeng 20220530 start	
+#if 0
+//#if IS_ENABLED(CONFIG_MTK_CHARGER)
+////prize add by lipengpeng 20220530 end
 #if CONFIG_WATER_DETECTION
 	power_supply_put(rpmd->chg_psy);
 #endif /* CONFIG_WATER_DETECTION */
