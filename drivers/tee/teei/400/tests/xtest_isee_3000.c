@@ -23,16 +23,7 @@ const struct TEEC_UUID isee_test_ta_uuid_3000 = DRM_04_UUID;
 #define Cache_line_size 32
 static inline void Flush_Dcache_By_Area(unsigned long start, unsigned long end)
 {
-#ifdef CONFIG_ARM64
-		__flush_dcache_area((void *)start, (end - start));
-#else
-		__cpuc_flush_dcache_area((void *)start, (end - start));
-#endif
-}
-static inline void Invalidate_Dcache_By_Area(unsigned long start,
-						unsigned long end)
-{
-#ifdef CONFIG_ARM64
+//prize add by lipengpeng 20220701 start 
 	uint64_t temp[2];
 
 	temp[0] = start;
@@ -42,40 +33,49 @@ static inline void Invalidate_Dcache_By_Area(unsigned long start,
 		"ldr x1, [%[temp], #8]\n\t"
 		"mrs    x3, ctr_el0\n\t"
 		"ubfm   x3, x3, #16, #19\n\t"
-		"mov	x2, #4\n\t"
-		"lsl	x2, x2, x3\n\t"
-		"dsb	sy\n\t"
-		"sub	x3, x2, #1\n\t"
-		"bic	x0, x0, x3\n\t"
+		"mov    x2, #4\n\t"
+		"lsl    x2, x2, x3\n\t"
+		"dsb    sy\n\t"
+		"sub    x3, x2, #1\n\t"
+		"bic    x0, x0, x3\n\t"
 		/* invalidate D line / unified line */
-		"1:	dc      ivac, x0\n\t"
-		"add	x0, x0, x2\n\t"
-		"cmp	x0, x1\n\t"
-		"b.lo	1b\n\t"
-		"dsb	sy\n\t"
+		"1:     dc      civac, x0\n\t"
+		"add    x0, x0, x2\n\t"
+		"cmp    x0, x1\n\t"
+		"b.lo   1b\n\t"
+		"dsb    sy\n\t"
 		: :
 		[temp] "r" (temp)
 		: "x0", "x1", "x2", "x3", "memory");
-#else
-	__asm__ __volatile__ ("dsb" : : : "memory"); /* dsb */
-	__asm__ __volatile__ (
-		/* Invalidate Data Cache Line (using MVA) Register */
-		"1:  mcr p15, 0, %[i], c7, c6, 1\n"
-		"    add %[i], %[i], %[clsz]\n"
-		"    cmp %[i], %[end]\n"
-		"    blo 1b\n"
-		:
-		[i]    "=&r" (start)
-		:      "0"   ((unsigned long)start & (~(Cache_line_size - 1))),
-		[end]  "r"   (end),
-		[clsz] "i"   (Cache_line_size)
-		: "memory");
+}
 
-	/* invalidate btc */
-	asm volatile ("mcr p15, 0, %0, c7, c5, 0" : : "r" (0) : "memory");
-	__asm__ __volatile__ ("dsb" : : : "memory"); /* dsb */
+static inline void Invalidate_Dcache_By_Area(unsigned long start,
+						unsigned long end)
+{
+	uint64_t temp[2];
 
-#endif
+	temp[0] = start;
+	temp[1] = end;
+	__asm__ volatile(
+		"ldr x0, [%[temp], #0]\n\t"
+		"ldr x1, [%[temp], #8]\n\t"
+		"mrs    x3, ctr_el0\n\t"
+		"ubfm   x3, x3, #16, #19\n\t"
+		"mov    x2, #4\n\t"
+		"lsl    x2, x2, x3\n\t"
+		"dsb    sy\n\t"
+		"sub    x3, x2, #1\n\t"
+		"bic    x0, x0, x3\n\t"
+		/* invalidate D line / unified line */
+		"1:     dc      ivac, x0\n\t"
+		"add    x0, x0, x2\n\t"
+		"cmp    x0, x1\n\t"
+		"b.lo   1b\n\t"
+		"dsb    sy\n\t"
+		: :
+		[temp] "r" (temp)
+		: "x0", "x1", "x2", "x3", "memory");
+//prize add by lipengpeng 20220701 end 
 }
 
 int xtest_isee_test_3030(void)

@@ -111,8 +111,10 @@ static void reetime_deinit(struct service_handler *handler)
 static int reetime_handle(struct NQ_entry *entry)
 {
 	struct timespec64 tp;
-	int tv_sec;
-	int tv_usec;
+//prize add by lipengpeng 20220701 start 	
+	long tv_sec;
+	long tv_usec;
+//prize add by lipengpeng 20220701 end 	
 	unsigned long long block_p = 0;
 	unsigned long long time_type = 0;
 	int retVal = 0;
@@ -121,7 +123,9 @@ static int reetime_handle(struct NQ_entry *entry)
 	block_p = entry->block_p;
 
 	if (time_type == GET_UPTIME) {
-		getboottime64(&tp);
+//prize add by lipengpeng 20220701 start 
+		ktime_get_boottime_ts64(&tp);
+//prize add by lipengpeng 20220701 end 
 		tv_sec = tp.tv_sec;
 		tv_usec = tp.tv_nsec / 1000;
 	} else {
