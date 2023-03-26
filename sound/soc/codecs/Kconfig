@@ -165,6 +165,9 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT1305
 	imply SND_SOC_RT1308
 	imply SND_SOC_RT5512
+#prize add by lipengpeng 20220606 start
+	imply SND_SOC_AW8839X
+#prize add by lipengpeng 20220606 end
 	imply SND_SOC_RT5514
 	imply SND_SOC_RT5616
 	imply SND_SOC_RT5631
@@ -1126,7 +1129,18 @@ config SND_SOC_RT5512
 	  amplifier which contain speaker protection,
 	  multi-band DRC, equalizer function. It would
 	  be set to yes if device with RT5512 on it.
-
+#prize add by lipengpeng 20220606 start 
+config SND_SOC_AW8839X
+	tristate "Mediatek AW8839X speaker amplifier"
+	depends on I2C
+	help
+	  Config of AW8839X. It is a Smart power
+	  amplifier which contain speaker protection,
+	  multi-band DRC, equalizer function. It would
+	  be set to yes if device with AW8839X on it.
+	  
+#prize add by lipengpeng 20220606 end 
+	  
 config SND_SOC_RT5514
 	tristate
 	depends on I2C

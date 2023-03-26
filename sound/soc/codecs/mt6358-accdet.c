@@ -28,8 +28,10 @@
 #include <sound/jack.h>
 #include <linux/mfd/mt6397/core.h>
 #include <linux/mfd/mt6358/core.h>
+#include <linux/power_supply.h>
 #include "mt6358-accdet.h"
 #include "mt6358.h"
+#include "../../../drivers/misc/mediatek/sensor/2.0/core/hf_manager.h"
 
 /* grobal variable definitions */
 #define REGISTER_VAL(x)	(x - 1)
@@ -125,6 +127,7 @@ static struct mt63xx_accdet_data *accdet;
 
 static struct head_dts_data accdet_dts;
 struct pwm_deb_settings *cust_pwm_deb;
+static struct power_supply *sar_psy;
 
 struct accdet_priv {
 	u32 caps;
@@ -1119,6 +1122,25 @@ static void dis_micbias_work_callback(struct work_struct *work)
 	}
 }
 
+static void do_sar_cali(void)
+{
+	
+	union power_supply_propval val = {0,};
+	int ret = 0;
+    if (!sar_psy) { 
+       sar_psy = power_supply_get_by_name("sar_cali");
+        if (!sar_psy){
+            pr_err("sar_psy psy not found!\n");
+			return;
+		}
+    }
+	
+	val.intval = 0;
+    ret = power_supply_set_property(sar_psy, POWER_SUPPLY_PROP_ONLINE, &val);
+
+	//mtk_nanohub_calibration_to_hub();
+}
+
 static void eint_work_callback(struct work_struct *work)
 {
 	if (accdet->cur_eint_state == EINT_PLUG_IN) {
@@ -1129,6 +1151,10 @@ static void eint_work_callback(struct work_struct *work)
 			jiffies_to_msecs(7 * HZ));
 
 		accdet_init();
+		
+		//prize-ACCDET sar calibration-pengzhipeng-2022812-start 
+		do_sar_cali();
+		//prize-ACCDET sar calibration-pengzhipeng-2022812-end 
 
 		/* set PWM IDLE  on */
 		accdet_update_bits(ACCDET_CMP_PWM_IDLE_ADDR,
