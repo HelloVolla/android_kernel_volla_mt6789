@@ -200,6 +200,9 @@ static int mtk_set_hw_brightness(struct mt_led_data *led_dat,
 
 	pr_debug("set hw brightness: %d -> %d", led_dat->hw_brightness, brightness);
 
+	brightness = brightness * 87 / 100;
+	
+
 	brightness = min(brightness, led_dat->conf.limit_hw_brightness);
 	if (brightness == led_dat->hw_brightness)
 		return 0;
@@ -256,8 +259,13 @@ static int mtk_set_brightness(struct led_classdev *led_cdev,
 		return 0;
 
 	led_dat->last_brightness = brightness;
-
+	
+	//pr_err("gezi----%s-----%d-------%d\n",__func__,__LINE__,brightness);
+	
 	trans_level = brightness_maptolevel(led_conf, brightness);
+	
+	//pr_err("gezi----%s-----%d-------%d\n",__func__,__LINE__,trans_level);
+	
 
 	led_debug_log(led_dat, brightness, trans_level);
 
