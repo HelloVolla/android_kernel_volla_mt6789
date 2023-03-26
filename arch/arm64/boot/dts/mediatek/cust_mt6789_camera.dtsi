@@ -18,14 +18,14 @@
 	};
 	camera_pins_cam1_rst_0: cam1@0 {
 		pins_cmd_dat {
-			pinmux = <PINMUX_GPIO16__FUNC_GPIO16>;
+			pinmux = <PINMUX_GPIO18__FUNC_GPIO18>;
 			slew-rate = <1>;
 			output-low;
 		};
 	};
 	camera_pins_cam1_rst_1: cam1@1 {
 		pins_cmd_dat {
-			pinmux = <PINMUX_GPIO16__FUNC_GPIO16>;
+			pinmux = <PINMUX_GPIO18__FUNC_GPIO18>;
 			slew-rate = <1>;
 			output-high;
 		};
@@ -44,6 +44,185 @@
 			output-high;
 		};
 	};
+	
+	camera_pins_cam0_pnd_0: cam0@2 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO19__FUNC_GPIO19>;
+			slew-rate = <1>;
+			output-low;
+		};
+	};
+	camera_pins_cam0_pnd_1: cam0@3 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO19__FUNC_GPIO19>;
+			slew-rate = <1>;
+			output-high;
+		};
+	};
+	camera_pins_cam1_pnd_0: cam1@2 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO17__FUNC_GPIO17>;
+			slew-rate = <1>;
+			output-low;
+		};
+	};
+	camera_pins_cam1_pnd_1: cam1@3 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO17__FUNC_GPIO17>;
+			slew-rate = <1>;
+			output-high;
+		};
+	};
+	camera_pins_cam2_pnd_0: cam2@2 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO21__FUNC_GPIO21>;
+			slew-rate = <1>;
+			output-low;
+		};
+	};
+	camera_pins_cam2_pnd_1: cam2@3 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO21__FUNC_GPIO21>;
+			slew-rate = <1>;
+			output-high;
+		};
+	};
+	//main camera
+	camera0_vcama_off: camera0_vcama_output_low@gpio155 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO155__FUNC_GPIO155>;
+			output-low;
+		};
+	};
+	camera0_vcama_on: camera0_vcama_output_high@gpio155 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO155__FUNC_GPIO155>;
+			output-high;
+		};
+	};
+	camera0_vcamio_off: camera0_vcamio_output_low@gpio152 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO152__FUNC_GPIO152>;
+			output-low;
+		};
+	};
+	camera0_vcamio_on: camera0_vcamio_output_high@gpio152 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO152__FUNC_GPIO152>;
+			output-high;
+		};
+	};
+	camera0_vcamd_off: camera0_vcamd_output_low@gpio153 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO153__FUNC_GPIO153>;
+			output-low;
+		};
+	};
+	camera0_vcamd_on: camera0_vcamd_output_high@gpio153 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO153__FUNC_GPIO153>;
+			output-high;
+		};
+	};
+	camera0_vcamaf_off: camera0_vcamaf_output_low@gpio156 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO156__FUNC_GPIO156>;
+			output-low;
+		};
+	};
+	camera0_vcamaf_on: camera0_vcamaf_output_high@gpio156 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO156__FUNC_GPIO156>;
+			output-high;
+		};
+	};
+	//sub camera
+	camera1_vcama_off: camera1_vcama_output_low@gpio159 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO159__FUNC_GPIO159>;
+			output-low;
+		};
+	};
+	camera1_vcama_on: camera1_vcama_output_high@gpio159 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO159__FUNC_GPIO159>;
+			output-high;
+		};
+	};
+	camera1_vcamio_off: camera1_vcamio_output_low@gpio152 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO152__FUNC_GPIO152>;
+			output-low;
+		};
+	};
+	camera1_vcamio_on: camera1_vcamio_output_high@gpio152 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO152__FUNC_GPIO152>;
+			output-high;
+		};
+	};
+	camera1_vcamd_off: camera1_vcamd_output_low@gpio158 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO158__FUNC_GPIO158>;
+			output-low;
+		};
+	};
+	camera1_vcamd_on: camera1_vcamd_output_high@gpio158 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO158__FUNC_GPIO158>;
+			output-high;
+		};
+	};
+	//wide camera
+	camera2_vcama_off: camera2_vcama_output_low@gpio104 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO104__FUNC_GPIO104>;
+			output-low;
+		};
+	};
+	camera2_vcama_on: camera2_vcama_output_high@gpio104 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO104__FUNC_GPIO104>;
+			output-high;
+		};
+	};
+	camera2_vcamio_off: camera2_vcamio_output_low@gpio152 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO152__FUNC_GPIO152>;
+			output-low;
+		};
+	};
+	camera2_vcamio_on: camera2_vcamio_output_high@gpio152 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO152__FUNC_GPIO152>;
+			output-high;
+		};
+	};
+	camera2_vcamd_off: camera2_vcamd_output_low@gpio110 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO110__FUNC_GPIO110>;
+			output-low;
+		};
+	};
+	camera2_vcamd_on: camera2_vcamd_output_high@gpio110 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO110__FUNC_GPIO110>;
+			output-high;
+		};
+	};
+	camera2_vcamaf_off: camera2_vcamaf_output_low@gpio156 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO156__FUNC_GPIO156>;
+			output-low;
+		};
+	};
+	camera2_vcamaf_on: camera2_vcamaf_output_high@gpio156 {
+		pins_cmd_dat {
+			pinmux = <PINMUX_GPIO156__FUNC_GPIO156>;
+			output-high;
+		};
+	};
+	
 	camera_pins_cam0_mclk_off: camera_pins_cam0_mclk_off {
 		pins_cmd_dat {
 			pinmux = <PINMUX_GPIO128__FUNC_GPIO128>;
@@ -76,31 +255,31 @@
 	};
 	camera_pins_cam1_mclk_off: camera_pins_cam1_mclk_off {
 		pins_cmd_dat {
-			pinmux = <PINMUX_GPIO126__FUNC_GPIO126>;
+			pinmux = <PINMUX_GPIO127__FUNC_GPIO127>;
 			drive-strength = <1>;
 		};
 	};
 	camera_pins_cam1_mclk_2ma: camera_pins_cam1_mclk_2ma {
 		pins_cmd_dat {
-			pinmux = <PINMUX_GPIO126__FUNC_CMMCLK0>;
+			pinmux = <PINMUX_GPIO127__FUNC_CMMCLK1>;
 			drive-strength = <0>;
 		};
 	};
 	camera_pins_cam1_mclk_4ma: camera_pins_cam1_mclk_4ma {
 		pins_cmd_dat {
-			pinmux = <PINMUX_GPIO126__FUNC_CMMCLK0>;
+			pinmux = <PINMUX_GPIO127__FUNC_CMMCLK1>;
 			drive-strength = <1>;
 		};
 	};
 	camera_pins_cam1_mclk_6ma: camera_pins_cam1_mclk_6ma {
 		pins_cmd_dat {
-			pinmux = <PINMUX_GPIO126__FUNC_CMMCLK0>;
+			pinmux = <PINMUX_GPIO127__FUNC_CMMCLK1>;
 			drive-strength = <2>;
 		};
 	};
 	camera_pins_cam1_mclk_8ma: camera_pins_cam1_mclk_8ma {
 		pins_cmd_dat {
-			pinmux = <PINMUX_GPIO126__FUNC_CMMCLK0>;
+			pinmux = <PINMUX_GPIO127__FUNC_CMMCLK1>;
 			drive-strength = <3>;
 		};
 	};
@@ -142,6 +321,25 @@
 			"cam0_rst0", "cam0_rst1",
 			"cam1_rst0", "cam1_rst1",
 			"cam2_rst0", "cam2_rst1",
+			
+			"cam0_pnd0", "cam0_pnd1",
+			"cam1_pnd0", "cam1_pnd1",
+			"cam2_pnd0", "cam2_pnd1",
+			
+			"cam0_ldo_vcama_1", "cam0_ldo_vcama_0",
+			"cam0_ldo_vcamio_1", "cam0_ldo_vcamio_0",
+			"cam0_ldo_vcamd_1", "cam0_ldo_vcamd_0",
+			"cam0_ldo_vcamaf_1", "cam0_ldo_vcamaf_0",
+			
+			"cam1_ldo_vcama_1", "cam1_ldo_vcama_0",
+			"cam1_ldo_vcamio_1", "cam1_ldo_vcamio_0",
+			"cam1_ldo_vcamd_1", "cam1_ldo_vcamd_0",
+			
+			"cam2_ldo_vcama_1", "cam2_ldo_vcama_0",
+			"cam2_ldo_vcamio_1", "cam2_ldo_vcamio_0",
+			"cam2_ldo_vcamd_1", "cam2_ldo_vcamd_0",
+			"cam2_ldo_vcamaf_1", "cam2_ldo_vcamaf_0",
+			
 			"cam0_mclk_off",
 			"cam0_mclk_2mA", "cam0_mclk_4mA",
 			"cam0_mclk_6mA", "cam0_mclk_8mA",
@@ -159,86 +357,104 @@
 	pinctrl-4 = <&camera_pins_cam1_rst_1>;
 	pinctrl-5 = <&camera_pins_cam2_rst_0>;
 	pinctrl-6 = <&camera_pins_cam2_rst_1>;
-	pinctrl-7 = <&camera_pins_cam0_mclk_off>;
-	pinctrl-8 = <&camera_pins_cam0_mclk_2ma>;
-	pinctrl-9 = <&camera_pins_cam0_mclk_4ma>;
-	pinctrl-10 = <&camera_pins_cam0_mclk_6ma>;
-	pinctrl-11 = <&camera_pins_cam0_mclk_8ma>;
-	pinctrl-12 = <&camera_pins_cam1_mclk_off>;
-	pinctrl-13 = <&camera_pins_cam1_mclk_2ma>;
-	pinctrl-14 = <&camera_pins_cam1_mclk_4ma>;
-	pinctrl-15 = <&camera_pins_cam1_mclk_6ma>;
-	pinctrl-16 = <&camera_pins_cam1_mclk_8ma>;
-	pinctrl-17 = <&camera_pins_cam2_mclk_off>;
-	pinctrl-18 = <&camera_pins_cam2_mclk_2ma>;
-	pinctrl-19 = <&camera_pins_cam2_mclk_4ma>;
-	pinctrl-20 = <&camera_pins_cam2_mclk_6ma>;
-	pinctrl-21 = <&camera_pins_cam2_mclk_8ma>;
-	/* main (wide)*/
-	cam0_vcama-supply = <&rt5133_ldo4>;
-	cam0_vcamio-supply = <&rt5133_ldo1>;
-	cam0_vcamd-supply = <&rt5133_ldo8>;
-	cam0_vcama1-supply = <&rt5133_ldo5>;
-	cam0_vcamaf-supply = <&rt5133_ldo3>;
-
-	/* front*/
-	cam1_vcama-supply = <&rt5133_ldo6>;
-	cam1_vcamio-supply = <&rt5133_ldo1>;
-	cam1_vcamd-supply = <&rt5133_ldo7>;
-	cam1_vcama1-supply = <&rt5133_ldo5>;
-	cam1_vcamaf-supply = <&rt5133_ldo2>;
-
-	/* main2 (Ultra Wide)*/
-	cam2_vcama-supply = <&rt5133_gpio2>;
-	cam2_vcamio-supply = <&rt5133_ldo1>;
-	cam2_vcamd-supply = <&rt5133_ldo7>;
-	cam2_vcama1-supply = <&rt5133_ldo5>;
-	cam2_vcamaf-supply = <&rt5133_gpio1>;
-
+	
+	pinctrl-7 = <&camera_pins_cam0_pnd_0>;
+	pinctrl-8 = <&camera_pins_cam0_pnd_1>;
+	pinctrl-9 = <&camera_pins_cam1_pnd_0>;
+	pinctrl-10 = <&camera_pins_cam1_pnd_1>;
+	pinctrl-11 = <&camera_pins_cam2_pnd_0>;
+	pinctrl-12 = <&camera_pins_cam2_pnd_1>;
+	
+	pinctrl-13 = <&camera0_vcama_on>;
+	pinctrl-14 = <&camera0_vcama_off>;
+	pinctrl-15 = <&camera0_vcamio_on>;
+	pinctrl-16 = <&camera0_vcamio_off>;
+	pinctrl-17 = <&camera0_vcamd_on>;
+	pinctrl-18 = <&camera0_vcamd_off>;
+	pinctrl-19 = <&camera0_vcamaf_on>;
+	pinctrl-20 = <&camera0_vcamaf_off>;
+	
+	pinctrl-21 = <&camera1_vcama_on>;
+	pinctrl-22 = <&camera1_vcama_off>;
+	pinctrl-23 = <&camera1_vcamio_on>;
+	pinctrl-24 = <&camera1_vcamio_off>;
+	pinctrl-25 = <&camera1_vcamd_on>;
+	pinctrl-26 = <&camera1_vcamd_off>;
+	
+	pinctrl-27 = <&camera2_vcama_on>;
+	pinctrl-28 = <&camera2_vcama_off>;
+	pinctrl-29 = <&camera2_vcamio_on>;
+	pinctrl-30 = <&camera2_vcamio_off>;
+	pinctrl-31 = <&camera2_vcamd_on>;
+	pinctrl-32 = <&camera2_vcamd_off>;
+	pinctrl-33 = <&camera2_vcamaf_on>;
+	pinctrl-34 = <&camera2_vcamaf_off>;
+	
+	pinctrl-35 = <&camera_pins_cam0_mclk_off>;
+	pinctrl-36 = <&camera_pins_cam0_mclk_2ma>;
+	pinctrl-37 = <&camera_pins_cam0_mclk_4ma>;
+	pinctrl-38 = <&camera_pins_cam0_mclk_6ma>;
+	pinctrl-39 = <&camera_pins_cam0_mclk_8ma>;
+	pinctrl-40 = <&camera_pins_cam1_mclk_off>;
+	pinctrl-41 = <&camera_pins_cam1_mclk_2ma>;
+	pinctrl-42 = <&camera_pins_cam1_mclk_4ma>;
+	pinctrl-43 = <&camera_pins_cam1_mclk_6ma>;
+	pinctrl-44 = <&camera_pins_cam1_mclk_8ma>;
+	pinctrl-45 = <&camera_pins_cam2_mclk_off>;
+	pinctrl-46 = <&camera_pins_cam2_mclk_2ma>;
+	pinctrl-47 = <&camera_pins_cam2_mclk_4ma>;
+	pinctrl-48 = <&camera_pins_cam2_mclk_6ma>;
+	pinctrl-49 = <&camera_pins_cam2_mclk_8ma>;
+	
+	cam0_enable_sensor = "s5kgm1st_mipi_raw";
+	cam1_enable_sensor = "ov16a1q_mipi_raw";
+	cam2_enable_sensor = "gc08a3wide_mipi_raw";
+	
 	cam0_pin_mclk = "mclk";
 	cam0_pin_rst = "gpio";
-	cam0_pin_vcama = "regulator";
-	cam0_pin_vcamio = "regulator";
-	cam0_pin_vcamd = "regulator";
-	cam0_pin_vcama1 = "regulator";
-	cam0_pin_vcamaf = "regulator";
+	cam0_pin_pnd = "gpio";
+	cam0_pin_vcama = "gpio";
+	cam0_pin_vcamio = "gpio";
+	cam0_pin_vcamd = "gpio";
+	cam0_pin_vcamaf = "gpio";
 	cam1_pin_mclk = "mclk";
 	cam1_pin_rst = "gpio";
-	cam1_pin_vcama = "regulator";
-	cam1_pin_vcamio = "regulator";
-	cam1_pin_vcamd = "regulator";
-	cam1_pin_vcama1 = "regulator";
-	cam1_pin_vcamaf = "regulator";
+	cam1_pin_pnd = "gpio";
+	cam1_pin_vcama = "gpio";
+	cam1_pin_vcamio = "gpio";
+	cam1_pin_vcamd = "gpio";
+//	cam1_pin_vcama1 = "gpio";
 	cam2_pin_mclk = "mclk";
 	cam2_pin_rst = "gpio";
-	cam2_pin_vcama = "regulator";
-	cam2_pin_vcamio = "regulator";
-	cam2_pin_vcamd = "regulator";
-	cam2_pin_vcama1 = "regulator";
+	cam2_pin_pnd = "gpio";
+	cam2_pin_vcama = "gpio";
+	cam2_pin_vcamio = "gpio";
+	cam2_pin_vcamd = "gpio";
 	cam2_pin_vcamaf = "gpio";
+	
 	status = "okay";
 };
 /* CAMERA GPIO end */
 
 /* CAMERA EEPROM */
-&i2c2 {
-	status = "okay";
-	clock-frequency = <400000>;
-	#address-cells = <1>;
-	#size-cells = <0>;
+//&i2c2 {
+//	status = "okay";
+//	clock-frequency = <400000>;
+//	#address-cells = <1>;
+//	#size-cells = <0>;
 
-	mtk_camera_eeprom2:camera_eeprom2@51 {
-		compatible = "mediatek,camera_eeprom";
-		reg = <0x51>;
-		status = "okay";
-	};
-	camera_main_two_mtk:camera_main_two@10 {
-		compatible = "mediatek,camera_main_two";
-		#thermal-sensor-cells = <0>;
-		reg = <0x10>;
-		status = "okay";
-	};
-};
+//	mtk_camera_eeprom2:camera_eeprom2@51 {
+//		compatible = "mediatek,camera_eeprom";
+//		reg = <0x51>;
+//		status = "okay";
+//	};
+//	camera_main_two_mtk:camera_main_two@10 {
+//		compatible = "mediatek,camera_main_two";
+//		#thermal-sensor-cells = <0>;
+//		reg = <0x10>;
+//		status = "okay";
+//	};
+//};
 &i2c4 {
 	status = "okay";
 	clock-frequency = <400000>;
@@ -250,10 +466,21 @@
 		reg = <0x51>;
 		status = "okay";
 	};
+	mtk_camera_eeprom2:camera_eeprom2@52 {
+		compatible = "mediatek,camera_eeprom";
+		reg = <0x52>;
+		status = "okay";
+	};
 	camera_sub_mtk:camera_sub@1a {
 		compatible = "mediatek,camera_sub";
 		#thermal-sensor-cells = <0>;
 		reg = <0x1a>;
+		status = "okay";
+	};
+	camera_main_two_mtk:camera_main_two@10 {
+		compatible = "mediatek,camera_main_two";
+		#thermal-sensor-cells = <0>;
+		reg = <0x10>;
 		status = "okay";
 	};
 };

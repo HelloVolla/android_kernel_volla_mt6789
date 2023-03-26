@@ -2198,7 +2198,7 @@
 		regulator_vibrator: regulator_vibrator {
 			compatible = "regulator-vibrator";
 			label = "vibrator";
-			min-volt = <2800000>;
+			min-volt = <3000000>;
 			max-volt = <3500000>;
 			vib-supply = <&mt6358_vibr_reg>;
 		};
@@ -2974,6 +2974,17 @@
 			#dma-cells = <1>;
 		};
 
+		spi1: spi1@11010000 {
+			compatible = "mediatek,mt6789-spi";
+			mediatek,pad-select = <0>;
+			reg = <0 0x11010000 0 0x100>;
+			interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH 0>;
+			clocks = <&topckgen_clk CLK_TOP_MSDCPLL_D2>,
+				<&topckgen_clk CLK_TOP_SPI_SEL>,
+				<&infracfg_ao_clk CLK_IFRAO_SPI1>;
+			clock-names = "parent-clk", "sel-clk", "spi-clk";
+		};
+
 		spi0: spi0@1100a000 {
 			compatible = "mediatek,mt6789-spi";
 			mediatek,pad-select = <0>;
@@ -3006,16 +3017,7 @@
 			clock-names = "btifc","apdmac";
 		};
 
-		spi1: spi1@11010000 {
-			compatible = "mediatek,mt6789-spi";
-			mediatek,pad-select = <0>;
-			reg = <0 0x11010000 0 0x100>;
-			interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH 0>;
-			clocks = <&topckgen_clk CLK_TOP_MSDCPLL_D2>,
-				<&topckgen_clk CLK_TOP_SPI_SEL>,
-				<&infracfg_ao_clk CLK_IFRAO_SPI1>;
-			clock-names = "parent-clk", "sel-clk", "spi-clk";
-		};
+
 
 		spi2: spi2@11012000 {
 			compatible = "mediatek,mt6789-spi";
@@ -3063,6 +3065,10 @@
 
 		goodix_fp: fingerprint {
 			compatible = "mediatek,goodix-fp";
+		};
+	
+		fpc: fpc {
+			compatible = "mediatek,mt6765-fpc";
 		};
 
 		uart0: serial@11002000 {
@@ -5983,10 +5989,10 @@
 
 		extcon_usb: extcon_usb {
 			compatible = "mediatek,extcon-usb";
-			vbus-supply = <&mt6375_otg_vbus>;
+			/*vbus-supply = <&mt6375_otg_vbus>;*/   // lipengpeng 20220601 start
 			vbus-voltage = <5000000>;
 			vbus-current = <1800000>;
-			charger = <&mt6375_chg>;
+			charger = <&sc89601a_chg>;  // lipengpeng 20220601 start
 			tcpc = "type_c_port0";
 			mediatek,bypss-typec-sink = <1>;
 			mediatek,u2;
@@ -6279,7 +6285,7 @@
 		compatible = "mediatek,charger,pe";
 		gauge = <&mtk_gauge>;
 
-		ta_12v_support;
+		/*ta_12v_support;*/
 		ta_9v_support;
 
 		pe_ichg_level_threshold = <1000000>; /* uA */
@@ -6287,10 +6293,10 @@
 		ta_stop_battery_soc = <85>;
 		min_charger_voltage = <4600000>;
 
-		ta_ac_12v_input_current = <3200000>;
-		ta_ac_9v_input_current = <3200000>;
-		ta_ac_7v_input_current = <3200000>;
-		pe_charger_current = <3000000>;
+		ta_ac_12v_input_current = <2000000>;
+		ta_ac_9v_input_current = <2800000>;
+		ta_ac_7v_input_current = <2800000>;
+		pe_charger_current = <2800000>;
 		vbat_threshold = <4150>;
 	};
 
@@ -6437,49 +6443,49 @@
 	charger: charger {
 		compatible = "mediatek,charger";
 		gauge = <&mtk_gauge>;
-		charger = <&mt6375_chg>;
+		charger = <&sc89601a_chg>;
 		bootmode = <&chosen>;
 
 		algorithm_name = "Basic";
 		charger_configuration= <0>;
 
 		/* common */
-		battery_cv = <4350000>;
-		max_charger_voltage = <6500000>;
+		battery_cv = <4400000>;
+		max_charger_voltage = <10000000>;
 		min_charger_voltage = <4600000>;
 
 		/* sw jeita */
 		/* enable_vbat_mon = <1>; */
-		/* enable_sw_jeita; */
-		jeita_temp_above_t4_cv = <4240000>;
-		jeita_temp_t3_to_t4_cv = <4240000>;
-		jeita_temp_t2_to_t3_cv = <4340000>;
-		jeita_temp_t1_to_t2_cv = <4240000>;
-		jeita_temp_t0_to_t1_cv = <4040000>;
-		jeita_temp_below_t0_cv = <4040000>;
+		enable_sw_jeita;
+		jeita_temp_above_t4_cv = <4100000>;
+		jeita_temp_t3_to_t4_cv = <4100000>;
+		jeita_temp_t2_to_t3_cv = <4400000>;
+		jeita_temp_t1_to_t2_cv = <4400000>;
+		jeita_temp_t0_to_t1_cv = <4400000>;
+		jeita_temp_below_t0_cv = <4000000>;
 		temp_t4_thres = <50>;
 		temp_t4_thres_minus_x_degree = <47>;
 		temp_t3_thres = <45>;
 		temp_t3_thres_minus_x_degree = <39>;
-		temp_t2_thres = <10>;
-		temp_t2_thres_plus_x_degree = <16>;
+		temp_t2_thres = <15>;
+		temp_t2_thres_plus_x_degree = <20>;
 		temp_t1_thres = <0>;
 		temp_t1_thres_plus_x_degree = <6>;
-		temp_t0_thres = <0>;
-		temp_t0_thres_plus_x_degree = <0>;
-		temp_neg_10_thres = <0>;
+		temp_t0_thres = <(-5)>;
+		temp_t0_thres_plus_x_degree = <(-2)>;
+		temp_neg_10_thres = <(-10)>;
 
 		/* battery temperature protection */
 		enable_min_charge_temp;
-		min_charge_temp = <0>;
-		min_charge_temp_plus_x_degree = <6>;
+		min_charge_temp = <(-5)>;
+		min_charge_temp_plus_x_degree = <(-2)>;
 		max_charge_temp = <50>;
 		max_charge_temp_minus_x_degree = <47>;
 
 		/* charging current */
 		usb_charger_current = <500000>;
-		ac_charger_current = <2050000>;
-		ac_charger_input_current = <3200000>;
+		ac_charger_current = <2000000>;
+		ac_charger_input_current = <2000000>;
 		charging_host_charger_current = <1500000>;
 
 		/* dynamic mivr */
@@ -6489,7 +6495,7 @@
 		max_dmivr_charger_current = <1800000>;
 
 		/* fast charging algo support indicator */
-		enable_fast_charging_indicator;
+		/*enable_fast_charging_indicator;*/
 	};
 
 	rt-pd-manager {
@@ -6507,7 +6513,7 @@
 
 	mtk_ctd: mtk_ctd {
 		compatible = "mediatek,mtk_ctd";
-		bc12 = <&mt6375_chg>;
+		bc12 = <&sc89601a_chg>;
 		bc12_sel = <0>;
 	};
 
@@ -6807,8 +6813,72 @@
 	};
 };
 
+&i2c2 {
+        clock-frequency = <500000>;
+        sc89601a_chg: chg@6B {
+            compatible = "sc,sc89601a_charger";
+            reg = <0x6B>;
+            status = "okay";
+            charger_name = "primary_chg";
+            eint_name = "chr_stat";
+            sc,intr-gpio = <&pio 4 0>;
+            sc,chg-en-gpio = <&pio 49 0>;
+            sc,sc89601a,usb-vlim = <4600>;
+            sc,sc89601a,usb-ilim = <500>;
+            sc,sc89601a,usb-vreg = <4400>;
+            sc,sc89601a,usb-ichg = <500>;
+            sc,sc89601a,precharge-current = <180>;
+            sc,sc89601a,termination-current = <500>;
+            sc,sc89601a,boost-voltage = <5150>;
+            sc,sc89601a,boost-current = <1200>;
+        };
+
+
+		sc8551-charger@66{
+			compatible = "sc,sc8551-standalone";
+			reg = <0x66>;
+			sc,sc8551,irq-gpio = <&pio 12 0>;
+			/*sc,sc8551,bat-ovp-disable = <0>;
+			sc,sc8551,bat-ocp_disable = <0>;
+			sc,sc8551,bus-ocp-disable = <0>;*/
+
+			sc,sc8551,bat-ovp-threshold = <4525>;
+			sc,sc8551,bat-ocp-threshold = <8000>;
+
+			sc,sc8551,bus-ovp-threshold = <12000>;
+			sc,sc8551,bus-ocp-threshold = <3750>;
+
+			sc,sc8551,ac-ovp-threshold = <12000>;
+			sc,sc8551,sense-resistor-mohm = <5>;
+		};
+
+
+};
+
+
+&i2c7 {
+		sc8551-charger@66{
+			compatible = "sc,sc8551-standalone";
+			reg = <0x66>;
+			sc,sc8551,irq-gpio = <&pio 12 0>;
+			/*sc,sc8551,bat-ovp-disable = <0>;
+			sc,sc8551,bat-ocp_disable = <0>;
+			sc,sc8551,bus-ocp-disable = <0>;*/
+
+			sc,sc8551,bat-ovp-threshold = <4525>;
+			sc,sc8551,bat-ocp-threshold = <8000>;
+
+			sc,sc8551,bus-ovp-threshold = <12000>;
+			sc,sc8551,bus-ocp-threshold = <3750>;
+
+			sc,sc8551,ac-ovp-threshold = <12000>;
+			sc,sc8551,sense-resistor-mohm = <5>;
+		};
+};
+
 &i2c5 {
 	clock-frequency = <1000000>;
+
 	mt6375: mt6375@34 {
 		compatible = "mediatek,mt6375";
 		reg = <0x34>;
@@ -7091,8 +7161,10 @@
 	regulator-min-microvolt = <0>;
 };
 
+/delete-node/ &mt6358_vpa_reg;
+
 &mtk_gauge {
-	charger = <&mt6375_chg>;
+	charger = <&sc89601a_chg>;
 };
 
 &mddriver {
