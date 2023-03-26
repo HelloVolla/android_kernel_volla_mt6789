@@ -44,6 +44,10 @@ static int ufs_abort_aee_count;
 #include "ufs-mediatek-trace.h"
 #undef CREATE_TRACE_POINTS
 
+//prize add by lipengpeng 20220901 start
+#include "../../misc/mediatek/prize/hardware_info/hardware_info.h"
+//prize add by lipengpeng 20220901 end 
+
 #define ufs_mtk_va09_pwr_ctrl(res, on) \
 	ufs_mtk_smc(UFS_MTK_SIP_VA09_PWR_CTRL, res, on)
 
@@ -2202,6 +2206,12 @@ static void ufs_mtk_fixup_dev_quirks(struct ufs_hba *hba)
 	}
 
 	ufs_mtk_install_tracepoints(hba);
+
+//prize add by lipengpeng 20220901 start 
+	sprintf(current_flash_lpddr_info.chip,"model=%s",hba->dev_info.model);
+    sprintf(current_flash_lpddr_info.id,"Device vendor=0x%X", hba->dev_info.wmanufacturerid);
+    sprintf(current_flash_lpddr_info.vendor,"hba->ufs_version = 0x%x", hba->ufs_version);
+//prize add by lipengpeng 20220901 end 
 
 #if defined(CONFIG_UFSFEATURE)
 	if (hba->dev_info.wmanufacturerid == UFS_VENDOR_SAMSUNG) {
