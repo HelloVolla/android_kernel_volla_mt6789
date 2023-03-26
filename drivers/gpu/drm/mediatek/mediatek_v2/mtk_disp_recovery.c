@@ -32,7 +32,7 @@
 #include "mtk_drm_mmp.h"
 #include "mtk_drm_trace.h"
 
-#define ESD_TRY_CNT 5
+#define ESD_TRY_CNT 20
 #define ESD_CHECK_PERIOD 2000 /* ms */
 
 /* pinctrl implementation */

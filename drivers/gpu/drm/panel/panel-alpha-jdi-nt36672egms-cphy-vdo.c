@@ -27,6 +27,14 @@
 #include "../mediatek/mediatek_v2/mtk_panel_ext.h"
 #include "../mediatek/mediatek_v2/mtk_drm_graphics_base.h"
 #endif
+
+#if IS_ENABLED(CONFIG_PRIZE_HARDWARE_INFO)
+#include "../../../misc/mediatek/prize/hardware_info/hardware_info.h"
+#endif
+//priz add by lipengpeng 20220804 start 
+#include "../../../input/touchscreen/FT8722/focaltech_core.h"
+//priz add by lipengpeng 20220804 end
+ 
 /* enable this to check panel self -bist pattern */
 /* #define PANEL_BIST_PATTERN */
 /****************TPS65132***********/
@@ -518,6 +526,7 @@ static int jdi_disable(struct drm_panel *panel)
 	return 0;
 }
 
+
 static int jdi_unprepare(struct drm_panel *panel)
 {
 
@@ -528,14 +537,33 @@ static int jdi_unprepare(struct drm_panel *panel)
 	if (!ctx->prepared)
 		return 0;
 
-	jdi_dcs_write_seq_static(ctx, MIPI_DCS_ENTER_SLEEP_MODE);
-	jdi_dcs_write_seq_static(ctx, MIPI_DCS_SET_DISPLAY_OFF);
-	msleep(200);
-	/*
-	 * ctx->reset_gpio = devm_gpiod_get(ctx->dev, "reset", GPIOD_OUT_HIGH);
-	 * gpiod_set_value(ctx->reset_gpio, 0);
-	 * devm_gpiod_put(ctx->dev, ctx->reset_gpio);
-	 */
+    //sleep TP
+	fts_enter_low_power();
+	msleep(50);
+	
+	//28-10
+	jdi_dcs_write_seq_static(ctx, 0x28);
+	msleep(60);
+	jdi_dcs_write_seq_static(ctx, 0x10);
+	msleep(220);
+	//sleep lcm
+	jdi_dcs_write_seq_static(ctx, 0x00,0x00);
+	jdi_dcs_write_seq_static(ctx, 0xFF,0x87,0x22,0x01);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x80);
+	jdi_dcs_write_seq_static(ctx, 0xFF,0x87,0x22);
+	jdi_dcs_write_seq_static(ctx, 0x00,0x00);
+	jdi_dcs_write_seq_static(ctx, 0xF7,0x5A,0xA5,0x95,0x27);
+	msleep(80);
+	//sleep  MIPI???
+//	jdi_dcs_write_seq_static(ctx, MIPI_DCS_ENTER_SLEEP_MODE);
+//	jdi_dcs_write_seq_static(ctx, MIPI_DCS_SET_DISPLAY_OFF);
+//	msleep(80);
+	//reset  high
+	 ctx->reset_gpio = devm_gpiod_get(ctx->dev, "reset", GPIOD_OUT_HIGH);
+	 gpiod_set_value(ctx->reset_gpio, 1);
+	 devm_gpiod_put(ctx->dev, ctx->reset_gpio);
+	 
+	//close ¡À5.8V
 	if (ctx->gate_ic == 0) {
 		ctx->bias_neg =
 			devm_gpiod_get_index(ctx->dev, "bias", 1, GPIOD_OUT_HIGH);
@@ -564,6 +592,8 @@ static int jdi_prepare(struct drm_panel *panel)
 	if (ctx->prepared)
 		return 0;
   	printk("jdi_prepare  ft8722 resume \n");
+	//RESET TP
+	fts_reset_proc(60);
 	// lcd reset H -> L -> L
 	ctx->reset_gpio = devm_gpiod_get(ctx->dev, "reset", GPIOD_OUT_HIGH);
 	gpiod_set_value(ctx->reset_gpio, 1);
@@ -633,20 +663,27 @@ static int jdi_enable(struct drm_panel *panel)
 #define HBP (32)
 
 #define VSA (4)
-#define VFP (2500) //2500
+#define VFP (1900) //2500       750--->2500
 #define VBP (30)
 
 #define HAC (1080)
 #define VAC (2408)
 
-#define VFP2 (853)//853
+#define VFP2 (450)//853  1390    750--->750
+
+#define VFP3 (18) //  30
+
 #define PCLK_IN_KHZ \
-    ((HAC+HFP+HSA+HBP)*(VAC+VFP+VSA+VBP)*(60)/1000) //2500
+    ((HAC+HFP+HSA+HBP)*(VAC+VFP+VSA+VBP)*(60)/1000) //2500  1160*4942*60/1000=343963
 #define PCLK2_IN_KHZ \
     ((HAC+HFP+HSA+HBP)*(VAC+VFP2+VSA+VBP)*(90)/1000) //853
+#define PCLK3_IN_KHZ \
+    ((HAC+HFP+HSA+HBP)*(VAC+VFP3+VSA+VBP)*(120)/1000) //30	
+	
 	
 #if HFP_SUPPORT
-static const struct drm_display_mode default_mode = {
+static const struct drm_display_mode default_mode = { //60hz 
+
 	
 	.clock = PCLK_IN_KHZ,
 	.hdisplay = HAC,
@@ -654,26 +691,29 @@ static const struct drm_display_mode default_mode = {
 	.hsync_end = HAC + HFP + HSA,
 	.htotal = HAC + HFP + HSA + HBP,//1140
 	.vdisplay = VAC,
-	.vsync_start = VAC + VFP,
-	.vsync_end = VAC + VFP + VSA,
-	.vtotal = VAC + VFP + VSA + VBP,//2199
+	.vsync_start = VAC + VFP,                   //60hz vpf
+	.vsync_end = VAC + VFP + VSA,              //60hz  vpf
+	.vtotal = VAC + VFP + VSA + VBP,//2199    //60hz  vpf
 	//.vrefresh = 60,//120
+
+
 };
 
-static const struct drm_display_mode performance_mode = {
-	.clock = PCLK_IN_KHZ,
+static const struct drm_display_mode performance_mode = { //90hz
+	.clock = PCLK2_IN_KHZ,
 	.hdisplay = HAC,
 	.hsync_start = HAC + HFP,
 	.hsync_end = HAC + HFP + HSA,
 	.htotal = HAC + HFP + HSA + HBP,//1140
 	.vdisplay = VAC,
-	.vsync_start = VAC + VFP,
-	.vsync_end = VAC + VFP + VSA,
-	.vtotal = VAC + VFP + VSA + VBP,//2199
+	.vsync_start = VAC + VFP2,                   //90hz vpf2
+	.vsync_end = VAC + VFP2 + VSA,              //90hz  vpf2
+	.vtotal = VAC + VFP2 + VSA + VBP,//2199    //90hz  vpf2
+
 	//.vrefresh = 60,//120
 };
 #else
-static const struct drm_display_mode default_mode = {
+static const struct drm_display_mode default_mode = { //60hz
 	.clock = PCLK_IN_KHZ,
 	.hdisplay = HAC,
 	.hsync_start = HAC + HFP,
@@ -686,40 +726,43 @@ static const struct drm_display_mode default_mode = {
 	//.vrefresh = 60,//120
 };
 
-static const struct drm_display_mode performance_mode = {
-	.clock = PCLK_IN_KHZ,
+static const struct drm_display_mode performance_mode = { //90hz
+	.clock = PCLK2_IN_KHZ,
 	.hdisplay = HAC,
 	.hsync_start = HAC + HFP,
 	.hsync_end = HAC + HFP + HSA,
 	.htotal = HAC + HFP + HSA + HBP,//1140
 	.vdisplay = VAC,
-	.vsync_start = VAC + VFP,
-	.vsync_end = VAC + VFP + VSA,
-	.vtotal = VAC + VFP + VSA + VBP,//2199
+	.vsync_start = VAC + VFP2,                   //90hz vpf2
+	.vsync_end = VAC + VFP2 + VSA,              //90hz  vpf2
+	.vtotal = VAC + VFP2 + VSA + VBP,//2199    //90hz  vpf2
 	//.vrefresh = 60,//120
 };
 #endif
-static const struct drm_display_mode performance_mode1 = {
-	.clock = PCLK_IN_KHZ,
+static const struct drm_display_mode performance_mode1 = {  //120hz
+	.clock = PCLK3_IN_KHZ,
 	.hdisplay = HAC,
 	.hsync_start = HAC + HFP,
 	.hsync_end = HAC + HFP + HSA,
 	.htotal = HAC + HFP + HSA + HBP,//1140
 	.vdisplay = VAC,
-	.vsync_start = VAC + VFP,
-	.vsync_end = VAC + VFP + VSA,
-	.vtotal = VAC + VFP + VSA + VBP,//2199
+	.vsync_start = VAC + VFP3,
+	.vsync_end = VAC + VFP3 + VSA,
+	.vtotal = VAC + VFP3 + VSA + VBP,//2199
 	//.vrefresh = 60,//120
 };
 
 
 #if defined(CONFIG_MTK_PANEL_EXT)
-static struct mtk_panel_params ext_params = {
-	.pll_clk = 700,
+static struct mtk_panel_params ext_params = {  //60hz
+
+
+	.pll_clk = 650,  //750
 	.vfp_low_power = 5500,//45hz
-	.cust_esd_check = 0,
-	.esd_check_enable = 0,
+	.cust_esd_check = 1,
+	.esd_check_enable = 1,
 	.lcm_esd_check_table[0] = {
+
 		.cmd = 0x0A, .count = 1, .para_list[0] = 0x9C,
 	},
 	.is_cphy = 1,
@@ -759,11 +802,11 @@ static struct mtk_panel_params ext_params = {
 		.rc_tgt_offset_hi = 3,
 		.rc_tgt_offset_lo = 3,
 		},
-	.data_rate = 844,
+	.data_rate = 1330,  //pll_clk *2  1570
 	//.lfr_enable = 1,
 	//.lfr_minimum_fps = 60,
 	.dyn_fps = {
-		.switch_en = 0,
+		.switch_en = 1,
 #if HFP_SUPPORT
 		.vact_timing_fps = 60,
 #else
@@ -772,11 +815,11 @@ static struct mtk_panel_params ext_params = {
 		.dfps_cmd_table[0] = {0, 2, {0xFF, 0x25} },
 		.dfps_cmd_table[1] = {0, 2, {0xFB, 0x01} },
 		.dfps_cmd_table[2] = {0, 2, {0x18, 0x21} },
-		/*switch page for esd check*/
+		//switch page for esd check
 		.dfps_cmd_table[3] = {0, 2, {0xFF, 0x10} },
 		.dfps_cmd_table[4] = {0, 2, {0xFB, 0x01} },
 	},
-	/* following MIPI hopping parameter might cause screen mess */
+	// following MIPI hopping parameter might cause screen mess 
 	.dyn = {
 		.switch_en = 0,
 		.pll_clk = 428,
@@ -784,13 +827,15 @@ static struct mtk_panel_params ext_params = {
 		.hfp = 396,
 		.vfp = 2528,
 	},
+
+
 };
 
-static struct mtk_panel_params ext_params_90hz = {
-	.pll_clk = 700,
-	.vfp_low_power = 3524,//60hz
-	.cust_esd_check = 0,
-	.esd_check_enable = 0,
+static struct mtk_panel_params ext_params_90hz = {  //90hz
+	.pll_clk = 650,  //750
+	.vfp_low_power = 5500,//60hz
+	.cust_esd_check = 1,
+	.esd_check_enable = 1,
 	.lcm_esd_check_table[0] = {
 
 		.cmd = 0x0A, .count = 1, .para_list[0] = 0x9C,
@@ -832,11 +877,11 @@ static struct mtk_panel_params ext_params_90hz = {
 		.rc_tgt_offset_hi = 3,
 		.rc_tgt_offset_lo = 3,
 		},
-	.data_rate = 844,
+	.data_rate = 1330,  //1570
 	.lfr_enable = 1,
 	.lfr_minimum_fps = 60,
 	.dyn_fps = {
-		.switch_en = 0,
+		.switch_en = 1,
 #if HFP_SUPPORT
 		.vact_timing_fps = 90,
 #else
@@ -845,26 +890,25 @@ static struct mtk_panel_params ext_params_90hz = {
 		.dfps_cmd_table[0] = {0, 2, {0xFF, 0x25} },
 		.dfps_cmd_table[1] = {0, 2, {0xFB, 0x01} },
 		.dfps_cmd_table[2] = {0, 2, {0x18, 0x20} },
-		/*switch page for esd check*/
 		.dfps_cmd_table[3] = {0, 2, {0xFF, 0x10} },
 		.dfps_cmd_table[4] = {0, 2, {0xFB, 0x01} },
 	},
-	/* following MIPI hopping parameter might cause screen mess */
 	.dyn = {
-		.switch_en = 0,
-		.pll_clk = 428,
-		.vfp_lp_dyn = 2528,
-		.hfp = 396,
-		.vfp = 879,
+		.switch_en = 1,
+		.pll_clk = 550,
+		.vfp_lp_dyn = 1291,
+		.hfp = 288,
+		.vfp = 750,
 	},
 };
 
-static struct mtk_panel_params ext_params_120hz = {
-	.pll_clk = 700,
-	.vfp_low_power = 3524,//idle 60hz
-	.cust_esd_check = 0,
-	.esd_check_enable = 0,
+static struct mtk_panel_params ext_params_120hz = {  //120hz
+	.pll_clk = 650, //750
+	.vfp_low_power = 5500,//60hz
+	.cust_esd_check = 1,
+	.esd_check_enable = 1,
 	.lcm_esd_check_table[0] = {
+
 		.cmd = 0x0A, .count = 1, .para_list[0] = 0x9C,
 	},
 	.is_cphy = 1,
@@ -904,26 +948,24 @@ static struct mtk_panel_params ext_params_120hz = {
 		.rc_tgt_offset_hi = 3,
 		.rc_tgt_offset_lo = 3,
 		},
-	.data_rate = 844,
+	.data_rate = 1330,  //1570
 	.lfr_enable = 1,
 	.lfr_minimum_fps = 60,
 	.dyn_fps = {
-		.switch_en = 0,
+		.switch_en = 1,
 		.vact_timing_fps = 120,
 		.dfps_cmd_table[0] = {0, 2, {0xFF, 0x25} },
 		.dfps_cmd_table[1] = {0, 2, {0xFB, 0x01} },
 		.dfps_cmd_table[2] = {0, 2, {0x18, 0x22} },
-		/*switch page for esd check*/
 		.dfps_cmd_table[3] = {0, 2, {0xFF, 0x10} },
 		.dfps_cmd_table[4] = {0, 2, {0xFB, 0x01} },
 	},
-	/* following MIPI hopping parameter might cause screen mess */
 	.dyn = {
-		.switch_en = 0,
-		.pll_clk = 428,
-		.vfp_lp_dyn = 2528,
-		.hfp = 396,
-		.vfp = 54,
+		.switch_en = 1,
+		.pll_clk = 550,
+		.vfp_lp_dyn = 1291,
+		.hfp = 288,
+		.vfp = 18,
 	},
 };
 
@@ -1253,7 +1295,18 @@ static int jdi_probe(struct mipi_dsi_device *dsi)
 
 #endif
 
-	printk("%s- jdi,nt36672e,cphy,vdo,hfp\n", __func__);
+	printk("%s- jdi,nt36672egms,cphy,vdo,hfp\n", __func__);
+
+//prize added by lipengpeng 20220708 start 
+#if IS_ENABLED(CONFIG_PRIZE_HARDWARE_INFO)
+	{
+	strcpy(current_lcm_info.chip,"ft8722");
+	strcpy(current_lcm_info.vendor,"unknow");
+    sprintf(current_lcm_info.id,"0x%04x",0x40);
+    sprintf(current_lcm_info.more,"%d*%d",VAC,HAC);
+	}
+#endif
+//prize added by lipengpeng 20220708  end
 
 	return ret;
 }
@@ -1277,7 +1330,7 @@ static int jdi_remove(struct mipi_dsi_device *dsi)
 
 static const struct of_device_id jdi_of_match[] = {
 	{
-	    .compatible = "jdi,nt36672e,cphy,vdo",
+	    .compatible = "jdi,nt36672egms,cphy,vdo",
 	},
 	{}
 };
@@ -1288,7 +1341,7 @@ static struct mipi_dsi_driver jdi_driver = {
 	.probe = jdi_probe,
 	.remove = jdi_remove,
 	.driver = {
-		.name = "panel-jdi-nt36672e-cphy-vdo",
+		.name = "panel-jdi-nt36672egms-cphy-vdo",
 		.owner = THIS_MODULE,
 		.of_match_table = jdi_of_match,
 	},
