@@ -112,6 +112,16 @@ obj-$(CONFIG_TOUCHSCREEN_ROHM_BU21023)	+= rohm_bu21023.o
 obj-$(CONFIG_TOUCHSCREEN_RASPBERRYPI_FW)	+= raspberrypi-ts.o
 obj-$(CONFIG_TOUCHSCREEN_IQS5XX)	+= iqs5xx.o
 obj-$(CONFIG_TOUCHSCREEN_ZINITIX)	+= zinitix.o
+#prize add by lipengpeng 20220521 start
+obj-$(CONFIG_TOUCHSCREEN_FTS)	+=  FT8722/
+#prize add by lipengpeng 20220521 end
+
+#prize add by lipengpeng 20220521 start
+obj-$(CONFIG_CDFINGER_REE)	+=  cdfinger_ree/
+#prize add by lipengpeng 20220521 end
+
+# obj-$(CONFIG_TOUCHSCREEN_CHIPONR_TDDI)	+=  chipone-tddi/
+
 TOUCH_LISTS := $(subst ",,$(CONFIG_TOUCHSCREEN_MTK_TOUCH))
 obj-y += $(foreach TOUCH,$(TOUCH_LISTS),$(TOUCH)/)
 
