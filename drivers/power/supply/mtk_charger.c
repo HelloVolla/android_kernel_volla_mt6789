@@ -62,7 +62,27 @@
 
 #include "mtk_charger.h"
 #include "mtk_battery.h"
+#include "mtk_pe.h"
 
+#include "pd_pe_policy.h"
+#include "pd_policy_manager.h"
+
+#include "sm5602_fg.h"
+
+#if IS_ENABLED(CONFIG_PRIZE_CHARGE_CTRL_POLICY)
+bool g_charge_is_screen_on = true;
+#endif
+
+//prize add by lipengpeng 20210621 start 
+//#if IS_ENABLED(CONFIG_PRIZE_MT5725_SUPPORT_15W)
+extern int reset_mt5725_info(void);
+extern int get_MT5725_status(void);
+extern void En_Dis_add_current(int i);
+struct mtk_charger *mt5725_info;
+extern int get_wireless_charge_current(struct charger_data *pdata);
+
+//#endif
+extern int mt5725_wireless_init(void);
 struct tag_bootmode {
 	u32 size;
 	u32 tag;
@@ -822,6 +842,7 @@ static ssize_t Pump_Express_show(struct device *dev,
 			break;
 		}
 	}
+	is_ta_detected = false;/*force 0*/
 	chr_err("%s: idx = %d, detect = %d\n", __func__, i, is_ta_detected);
 	return sprintf(buf, "%d\n", is_ta_detected);
 }
@@ -1906,6 +1927,104 @@ static ssize_t sc_ibat_limit_store(
 }
 static DEVICE_ATTR_RW(sc_ibat_limit);
 
+
+static ssize_t show_cmd_charge_disable(struct class *class, struct class_attribute *attr,	char *buf)
+{
+	struct mtk_charger *info = NULL;
+	struct power_supply *chg_psy = NULL;
+	chg_psy = power_supply_get_by_name("mtk-master-charger");
+	if(chg_psy == NULL){
+		pr_err("get chg_psy err\n");
+		return 0;
+	}
+	
+	info = (struct mtk_charger *)power_supply_get_drvdata(chg_psy);
+	
+	if(info == NULL){
+		return 0;
+	}
+
+	pr_info("[charge] %s : %d\n",__func__, info->cmd_discharging);
+	return sprintf(buf, "%d\n",info->cmd_discharging);
+}
+
+static ssize_t store_cmd_charge_disable(struct class *class, struct class_attribute *attr,	const char *buf, size_t count)
+{
+	
+	struct mtk_charger *info = NULL;
+	struct power_supply *chg_psy = NULL;
+	unsigned int reg = 0;
+	int ret;
+	
+	chg_psy = power_supply_get_by_name("mtk-master-charger");
+	if(chg_psy == NULL){
+		pr_err("get chg_psy err\n");
+		return 0;
+	}
+	
+	info = (struct mtk_charger *)power_supply_get_drvdata(chg_psy);
+	
+	if(info == NULL){
+		return 0;
+	}
+	
+	
+	if (buf != NULL && count != 0) {
+		pr_info("[store_cmd_charge_disable] buf is %s and count is %zu\n", buf, count);
+		ret = kstrtouint(buf, 16, &reg);
+		if(reg == 1){
+		   info->cmd_discharging = true;
+#if IS_ENABLED(CONFIG_PRIZE_MT5725_SUPPORT_15W)
+			/* Turn wireless charge off if support */
+			//turn_off_5725(1);
+			//set_otg_en_t(1);
+			test_gpio_t(1);
+			//set_wireless_disable_flag(true);
+#endif /*CONFIG_PRIZE_MT5725_SUPPORT_15W*/
+		}else if(reg == 0){
+#if IS_ENABLED(CONFIG_PRIZE_MT5725_SUPPORT_15W)
+			/* Resume wireless charge on if support */
+			//set_wireless_disable_flag(false);
+			//turn_off_5725(0);
+			//set_otg_en_t(0);
+			test_gpio_t(0);
+#endif /*CONFIG_PRIZE_MT5725_SUPPORT_15W*/
+		   info->cmd_discharging = false;
+		}else{
+		  pr_info("[store_cmd_charge_disable] input err please 0 or 1\n");
+		}
+
+		if((info->chr_type != POWER_SUPPLY_TYPE_UNKNOWN) && (reg == 1)){
+		   charger_dev_enable(info->chg1_dev, false);
+		   //FIXME:prize-Solve 90% of the problems not as of charging-pengzhipeng-20220725-start
+		  // if(dvchg1_chip_enabled){
+		   //	   charger_dev_enable(pinfo->dvchg1_dev, false);
+			  // charger_dev_enable_chip(pinfo->chg2_dev, false);
+		  // }
+		  
+		   	charger_dev_do_event(info->chg1_dev,EVENT_DISCHARGE, 0);
+		   //FIXME:prize-Solve 90% of the problems not as of charging-pengzhipeng-20220725-end
+		   //charger_manager_notifier(info,CHARGER_NOTIFY_STOP_CHARGING);
+		   pr_info("[store_cmd_charge_disable] disable charge\n");
+		}else if((info->chr_type != POWER_SUPPLY_TYPE_UNKNOWN) && (reg == 0)){
+		   charger_dev_enable(info->chg1_dev, true);
+		   //FIXME:prize-Solve 90% of the problems not as of charging-pengzhipeng-20220725-start
+		   //charger_dev_enable(info->dvchg1_dev, true);
+		   //mtk_pe50_set_is_enable(info, true);
+		   //FIXME:prize-Solve 90% of the problems not as of charging-pengzhipeng-20220725-end
+		   //charger_manager_notifier(info,CHARGER_NOTIFY_START_CHARGING);
+		   	charger_dev_do_event(info->chg1_dev,EVENT_RECHARGE, 0);
+		   pr_info("[store_cmd_charge_disable]  enable charge \n");
+		}else {
+		   pr_info("[store_cmd_charge_disable]  No USB connection \n");
+		}
+	}
+	
+
+	return count;
+}
+
+
 int mtk_chg_enable_vbus_ovp(bool enable)
 {
 	static struct mtk_charger *pinfo;
@@ -1930,7 +2049,7 @@ int mtk_chg_enable_vbus_ovp(bool enable)
 	if (enable)
 		sw_ovp = pinfo->data.max_charger_voltage_setting;
 	else
-		sw_ovp = 15000000;
+		sw_ovp = 15500000;
 
 	/* Enable/Disable SW OVP status */
 	pinfo->data.max_charger_voltage = sw_ovp;
@@ -2121,7 +2240,40 @@ static void mtk_chg_get_tchg(struct mtk_charger *info)
 		}
 	}
 }
+/*
+static int pdpe_get_state(struct mtk_charger *info)
+{
+	int ret = 0;
+    union power_supply_propval val = {0,};
 
+    if (!info->pdpe_psy) {
+        info->pdpe_psy = power_supply_get_by_name("pdpe-state");
+        if (!info->pdpe_psy) {
+            return -ENODEV;
+        }
+    }
+	
+	//val.intval = boot_mode;
+    ret = power_supply_get_property(info->pdpe_psy, POWER_SUPPLY_PROP_ONLINE, &val);
+	ret = val.intval;
+    return ret;
+}
+
+static int is_not_low_battery(struct mtk_charger *info)
+{
+	int vol = 0,ret = 0;
+	vol = get_battery_voltage(info);
+	
+	if(vol < 3500){
+		ret = 0;
+	}
+	else{
+		ret = 1;
+	}
+	
+	return ret;
+}
+*/
 static void charger_check_status(struct mtk_charger *info)
 {
 	bool charging = true;
@@ -2226,13 +2378,26 @@ stop_charging:
 		info->enable_vbat_mon, info->batpro_done);
 
 	charger_dev_is_enabled(info->chg1_dev, &chg_dev_chgen);
+/*	
+	if(pdpe_get_state(info) >= PDPE_WORK_PE_NOT_SUPPORT && (pdpe_get_state(info) <= PDPE_WORK_PD_RUN) \
+				&& is_not_low_battery(info)){
+		_mtk_enable_charging(info, false);
+	}*/
+	
+	/*else{*/
 
-	if (charging != info->can_charging)
-		_mtk_enable_charging(info, charging);
-	else if (charging == false && chg_dev_chgen == true)
-		_mtk_enable_charging(info, charging);
+		if (charging != info->can_charging){
+			_mtk_enable_charging(info, charging);
+		}
+		else if (charging == false && chg_dev_chgen == true){
+			_mtk_enable_charging(info, charging);
+		}
 
-	info->can_charging = charging;
+	
+		info->can_charging = charging;
+	
+//	}
+	
 }
 
 static bool charger_init_algo(struct mtk_charger *info)
@@ -2376,6 +2541,25 @@ static bool charger_init_algo(struct mtk_charger *info)
 	return true;
 }
 
+static int pdpe_update_boot_mode(struct mtk_charger *info,int boot_mode)
+{
+	int ret = 0;
+    union power_supply_propval val = {0,};
+
+    if (!info->pdpe_psy) {
+        info->pdpe_psy = power_supply_get_by_name("pdpe-state");
+        if (!info->pdpe_psy) {
+            return -ENODEV;
+        }
+    }
+	
+	val.intval = boot_mode;
+    ret = power_supply_set_property(info->pdpe_psy, POWER_SUPPLY_PROP_TEMP, &val);
+	
+    return ret;
+}
+
+
 static int mtk_charger_force_disable_power_path(struct mtk_charger *info,
 	int idx, bool disable);
 static int mtk_charger_plug_out(struct mtk_charger *info)
@@ -2401,6 +2585,13 @@ static int mtk_charger_plug_out(struct mtk_charger *info)
 		alg = info->alg[i];
 		chg_alg_notifier_call(alg, &notify);
 	}
+//prize add by lipengpeng 20210621 start 
+#if IS_ENABLED(CONFIG_PRIZE_MT5725_SUPPORT_15W)
+	   reset_mt5725_info();
+	   printk("lpp--- plug out enable add current\n");
+#endif
+//prize add by lipengpeng 20210621 end 
+	
 	memset(&info->sc.data, 0, sizeof(struct scd_cmd_param_t_1));
 	wakeup_sc_algo_cmd(&info->sc.data, SC_EVENT_PLUG_OUT, 0);
 	charger_dev_set_input_current(info->chg1_dev, 100000);
@@ -2439,6 +2630,17 @@ static int mtk_charger_plug_in(struct mtk_charger *info,
 	chr_err("mtk_is_charger_on plug in, type:%d\n", chr_type);
 
 	vbat = get_battery_voltage(info);
+
+//prize add by lipengpeng 20210621 start 
+//#if IS_ENABLED(CONFIG_PRIZE_MT5725_SUPPORT_15W)
+     printk("lpp---000-- plug in enable add current\n");
+    if(((info->chr_type == POWER_SUPPLY_TYPE_USB)&&(info->usb_type == POWER_SUPPLY_USB_TYPE_DCP)) && (get_MT5725_status() == 0))
+	{
+		printk("lpp---111-- plug in enable add current\n");
+		En_Dis_add_current(0x00);
+	}
+//#endif
+//prize add by lipengpeng 20210621 end 
 
 	notify.evt = EVT_PLUG_IN;
 	notify.value = 0;
@@ -2517,6 +2719,9 @@ static void kpoc_power_off_check(struct mtk_charger *info)
 	int counter = 0;
 	/* 8 = KERNEL_POWER_OFF_CHARGING_BOOT */
 	/* 9 = LOW_POWER_OFF_CHARGING_BOOT */
+	
+	pdpe_update_boot_mode(info,boot_mode);
+	
 	if (boot_mode == 8 || boot_mode == 9) {
 		vbus = get_vbus(info);
 		if (vbus >= 0 && vbus < 2500 && !mtk_is_charger_on(info) && !info->pd_reset) {
@@ -2783,6 +2988,32 @@ static void mtk_charger_init_timer(struct mtk_charger *info)
 #endif /* CONFIG_PM */
 }
 
+static struct class * hd8040_class;
+
+static struct class_attribute hd8040_class_attrs[] = {
+	__ATTR(cmd_charge_disable, S_IRUGO | S_IWUSR, show_cmd_charge_disable, store_cmd_charge_disable),
+	__ATTR_NULL,
+};
+
+static int cmd_charge_disable_sysfs_create(void)
+{
+	int i = 0,ret = 0;
+	
+	hd8040_class = class_create(THIS_MODULE, "cmd_charge_disable");
+	if (IS_ERR(hd8040_class))
+		return PTR_ERR(hd8040_class);
+	for (i = 0; hd8040_class_attrs[i].attr.name; i++) {
+		ret = class_create_file(hd8040_class,&hd8040_class_attrs[i]);
+		if (ret < 0)
+		{
+			pr_err("hd8040_sysfs_create error !!\n");
+			return ret;
+		}
+	}
+	return ret;
+	
+}
+
 static int mtk_charger_setup_files(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -2852,6 +3083,13 @@ static int mtk_charger_setup_files(struct platform_device *pdev)
 	ret = device_create_file(&(pdev->dev), &dev_attr_sc_ibat_limit);
 	if (ret)
 		goto _out;
+
+	//prize add by lvyuanchuan for controlling charger --start
+	//ret = device_create_file(&(pdev->dev), &dev_attr_cmd_charge_disable);
+	//if (ret)
+	//	goto _out;
+	cmd_charge_disable_sysfs_create();
+	//prize add by lvyuanchuan for controlling charger --end
 
 	battery_dir = proc_mkdir("mtk_battery_cmd", NULL);
 	if (!battery_dir) {
@@ -3029,6 +3267,12 @@ static int psy_charger_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		val->intval = info->chr_type;
 		break;
+//prize add by lipengpeng 20220607 start
+	case POWER_SUPPLY_PROP_TYPE:
+		chr_err("%s get type %d\n", __func__, info->usb_type);
+		val->intval = info->usb_type;
+		break;
+//prize add by lipengpeng 20220607 end
 	case POWER_SUPPLY_PROP_VOLTAGE_BOOT:
 		val->intval = get_charger_zcv(info, chg);
 		break;
@@ -3165,12 +3409,20 @@ int psy_charger_set_property(struct power_supply *psy,
 			info->enable_hv_charging = false;
 		break;
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
-		info->chg_data[idx].thermal_charging_current_limit =
-			val->intval;
+		if(get_MT5725_status() ==0){
+			info->chg_data[idx].thermal_charging_current_limit = val->intval;
+		}
+		else{
+			info->chg_data[idx].thermal_charging_current_limit = -1;
+		}
 		break;
 	case POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT:
-		info->chg_data[idx].thermal_input_current_limit =
-			val->intval;
+		if(get_MT5725_status() ==0){
+			info->chg_data[idx].thermal_input_current_limit = val->intval;
+		}
+		else{
+			info->chg_data[idx].thermal_input_current_limit = -1;
+		}
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT:
 		if (val->intval > 0)
@@ -3330,6 +3582,82 @@ int chg_alg_event(struct notifier_block *notifier,
 	return NOTIFY_DONE;
 }
 
+static int bms_get_property(struct power_supply *psy,
+	enum power_supply_property psp, union power_supply_propval *val)
+{
+	struct mtk_charger *info;
+	//int ret = 0;
+	
+	info = (struct mtk_charger *)power_supply_get_drvdata(psy);
+	if (info == NULL) {
+		chr_err("%s: get info failed\n", __func__);
+		return -EINVAL;
+	}
+	
+	chr_debug("%s psp:%d\n", __func__, psp);
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		val->intval = get_battery_voltage(info);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static enum power_supply_property bms_psy_properties[] = {
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+};
+
+static void bms_psy_init(struct platform_device *pdev,struct mtk_charger *info)
+{
+	info->psy_bms_desc.name = "cw-bat";
+	info->psy_bms_desc.type = POWER_SUPPLY_TYPE_UNKNOWN;
+	info->psy_bms_desc.properties = bms_psy_properties;
+	info->psy_bms_desc.num_properties = ARRAY_SIZE(bms_psy_properties);
+	info->psy_bms_desc.get_property = bms_get_property;
+	info->psy_bms_cfg.drv_data = info;
+	info->psy_bms = power_supply_register(&pdev->dev, &info->psy_bms_desc, &info->psy_bms_cfg);
+}
+
+#if IS_ENABLED(CONFIG_PRIZE_CHARGE_CTRL_POLICY)
+
+static int charger_disp_notifier_callback(struct notifier_block *nb,
+	unsigned long value, void *v)
+{
+	struct mtk_charger *info = container_of(nb, struct mtk_charger, disp_notifier);
+	int *data = (int *)v;
+
+	if (info && v) {
+		//cts_err("%s IN", __func__);
+		if (value == MTK_DISP_EARLY_EVENT_BLANK) {
+			if (*data == MTK_DISP_BLANK_POWERDOWN) {
+				g_charge_is_screen_on = false;
+			}
+		} else if (value == MTK_DISP_EVENT_BLANK) {
+			if (*data == MTK_DISP_BLANK_UNBLANK) {
+				g_charge_is_screen_on = true;
+			}
+		}
+	} else {
+		return -1;
+	}
+
+	return 0;
+}
+#endif
+
+
+//prize add by lipengpeng 20210621 start 
+//#if IS_ENABLED(CONFIG_PRIZE_MT5725_SUPPORT_15W)
+int MT5725_init(struct mtk_charger *info){
+    mt5725_info = info;
+	return 0;
+}
+//#endif
+//prize add by lipengpeng 20210621 end 
 static char *mtk_charger_supplied_to[] = {
 	"battery"
 };
@@ -3339,6 +3667,7 @@ static int mtk_charger_probe(struct platform_device *pdev)
 	struct mtk_charger *info = NULL;
 	int i;
 	char *name = NULL;
+	int ret=0;
 	struct netlink_kernel_cfg cfg = {
 		.input = chg_nl_data_handler,
 	};
@@ -3352,7 +3681,13 @@ static int mtk_charger_probe(struct platform_device *pdev)
 	info->pdev = pdev;
 
 	mtk_charger_parse_dt(info, &pdev->dev);
-
+ //prize add by lipengpeng 20220614 start   
+	ret=mt5725_wireless_init();
+	if(ret<0){
+		printk("lpp---mt5725_wireless_init failed\n");
+		
+	}
+ //prize add by lipengpeng 20220614 end  	
 	mutex_init(&info->cable_out_lock);
 	mutex_init(&info->charger_lock);
 	mutex_init(&info->pd_lock);
@@ -3495,6 +3830,37 @@ static int mtk_charger_probe(struct platform_device *pdev)
 	if (info != NULL && info->bootmode != 8 && info->bootmode != 9)
 		mtk_charger_force_disable_power_path(info, CHG1_SETTING, true);
 
+//prize add by lipengpeng 20210621 start 	
+//#if IS_ENABLED(CONFIG_PRIZE_MT5725_SUPPORT_15W)
+    MT5725_init(info);
+	pdpe_init(pdev);
+	mtk_pe_init();
+	usbpd_pm_init();
+//#endif
+//prize add by lipengpeng 20210621 end 
+
+	info->pdpe_psy = power_supply_get_by_name("pdpe-state");
+	if(info->pdpe_psy == NULL){
+		pr_err("gezi get info->pdpe_psy failed\n");
+	}
+	else{
+		pdpe_update_boot_mode(info,info->bootmode);
+	}
+	
+	bms_psy_init(pdev,info);
+	
+#if IS_ENABLED(CONFIG_PRIZE_CHARGE_CTRL_POLICY)
+	info->disp_notifier.notifier_call = charger_disp_notifier_callback;
+	ret = mtk_disp_notifier_register("screen monitor", &info->disp_notifier);
+	if (ret) {
+		pr_err("Failed to register screen monitor notifier client:%d", ret);
+		//goto err_register_disp_notif_failed;
+	}
+	else{
+		pr_err("gezi screen monitor register success.\n");
+	}
+#endif
+	
 	kthread_run(charger_routine_thread, info, "charger_thread");
 
 	return 0;

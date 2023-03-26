@@ -67,7 +67,19 @@ int get_uisoc(struct mtk_charger *info)
 	union power_supply_propval prop;
 	struct power_supply *bat_psy = NULL;
 	int ret;
-
+#if 1
+	struct power_supply *bms_psy = NULL;
+	bms_psy = power_supply_get_by_name("bms");
+	if (IS_ERR_OR_NULL(bms_psy)) {
+		pr_err("%s Couldn't get bms_psy\n", __func__);
+	}
+	else{
+		ret = power_supply_get_property(bms_psy,POWER_SUPPLY_PROP_CAPACITY, &prop);
+		ret = prop.intval;
+		chr_err("gezi %s:%d\n", __func__,ret);
+		return ret;
+	}
+#endif
 	bat_psy = info->bat_psy;
 
 	if (bat_psy == NULL || IS_ERR(bat_psy)) {
@@ -84,9 +96,7 @@ int get_uisoc(struct mtk_charger *info)
 			POWER_SUPPLY_PROP_CAPACITY, &prop);
 		ret = prop.intval;
 	}
-
-	chr_debug("%s:%d\n", __func__,
-		ret);
+	chr_debug("%s:%d\n", __func__,ret);
 	return ret;
 }
 
@@ -95,7 +105,19 @@ int get_battery_voltage(struct mtk_charger *info)
 	union power_supply_propval prop;
 	struct power_supply *bat_psy = NULL;
 	int ret;
-
+#if 1
+	struct power_supply *bms_psy = NULL;
+	bms_psy = power_supply_get_by_name("bms");
+	if (IS_ERR_OR_NULL(bms_psy)) {
+		pr_err("%s Couldn't get bms_psy\n", __func__);
+	}
+	else{
+		ret = power_supply_get_property(bms_psy,POWER_SUPPLY_PROP_VOLTAGE_NOW, &prop);
+		ret = prop.intval / 1000;
+		chr_err("gezi %s:%d\n", __func__,ret);
+		return ret;
+	}
+#endif
 	bat_psy = info->bat_psy;
 
 	if (bat_psy == NULL || IS_ERR(bat_psy)) {
@@ -153,6 +175,19 @@ int get_battery_current(struct mtk_charger *info)
 	struct power_supply *bat_psy = NULL;
 	int ret = 0;
 	int tmp_ret = 0;
+#if 1
+	struct power_supply *bms_psy = NULL;
+	bms_psy = power_supply_get_by_name("bms");
+	if (IS_ERR_OR_NULL(bms_psy)) {
+		pr_err("%s Couldn't get bms_psy\n", __func__);
+	}
+	else{
+		ret = power_supply_get_property(bms_psy,POWER_SUPPLY_PROP_CURRENT_NOW, &prop);
+		ret = prop.intval / 1000;
+		chr_err("gezi %s:%d\n", __func__,ret);
+		return ret;
+	}
+#endif
 
 	bat_psy = info->bat_psy;
 
@@ -219,15 +254,39 @@ int get_vbus(struct mtk_charger *info)
 int get_ibat(struct mtk_charger *info)
 {
 	int ret = 0;
-	int ibat = 0;
+	//int ibat = 0;
 
 	if (info == NULL)
 		return -EINVAL;
-	ret = charger_dev_get_ibat(info->chg1_dev, &ibat);
-	if (ret < 0)
-		chr_err("%s: get ibat failed: %d\n", __func__, ret);
+	//ret = charger_dev_get_ibat(info->chg1_dev, &ibat);
+	ret = get_battery_current(info);
+	if (ret < 0){
+		//chr_err("%s: get ibat failed: %d\n", __func__, ret);
+	}
+	
+	return ret;
+	
+/*
+
+    union power_supply_propval val = {0,};
+
+    if (!pdpm->bms_psy) {
+        pdpm->bms_psy = power_supply_get_by_name("bms");
+        if (!pdpm->bms_psy) {
+            return -ENODEV;
+        }
+    }
+
+    ret = power_supply_get_property(pdpm->bms_psy, 
+            POWER_SUPPLY_PROP_CURRENT_NOW, &val);
+    if (!ret){
+	
+        pdpm->sw.ibat_curr= (int)(val.intval/1000);
+	}
+
 
 	return ibat / 1000;
+*/	
 }
 
 int get_ibus(struct mtk_charger *info)
@@ -367,7 +426,7 @@ int get_usb_type(struct mtk_charger *info)
 		ret = power_supply_get_property(chg_psy,
 			POWER_SUPPLY_PROP_USB_TYPE, &prop2);
 	}
-	chr_debug("%s online:%d usb_type:%d\n", __func__,
+	chr_err("%s online:%d usb_type:%d\n", __func__,
 		prop.intval,
 		prop2.intval);
 	return prop2.intval;
