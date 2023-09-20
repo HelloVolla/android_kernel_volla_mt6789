@@ -578,7 +578,7 @@ int mtk_hcp_set_apu_dc(struct platform_device *pdev,
 				return -1;
 			}
 
-			dev_info(hcp_dev->dev, "%s: SLB buffer base(0x%x), size(%ld): %x",
+			dev_dbg(hcp_dev->dev, "%s: SLB buffer base(0x%x), size(%ld): %x",
 				__func__, (uintptr_t)slb.paddr, slb.size);
 
 			ctrl.id    = CTRL_ID_SLB_BASE;
@@ -1057,6 +1057,22 @@ void *mtk_hcp_get_gce_mem_virt(struct platform_device *pdev)
 }
 EXPORT_SYMBOL(mtk_hcp_get_gce_mem_virt);
 
+phys_addr_t mtk_hcp_get_gce_mem_size(struct platform_device *pdev)
+{
+	struct mtk_hcp *hcp_dev = platform_get_drvdata(pdev);
+	phys_addr_t mem_sz;
+
+	if (!hcp_dev->data->get_gce_mem_size) {
+		dev_info(&pdev->dev, "%s: not supported\n", __func__);
+		return 0;
+	}
+
+	mem_sz = hcp_dev->data->get_gce_mem_size();
+
+	return mem_sz;
+}
+EXPORT_SYMBOL(mtk_hcp_get_gce_mem_size);
+
 int mtk_hcp_get_gce_buffer(struct platform_device *pdev)
 {
 	struct mtk_hcp *hcp_dev = platform_get_drvdata(pdev);
@@ -1173,7 +1189,7 @@ static int mtk_hcp_mmap(struct file *file, struct vm_area_struct *vma)
 
 	/* dealing with register remap */
 	length = vma->vm_end - vma->vm_start;
-	dev_info(hcp_dev->dev,
+	dev_dbg(hcp_dev->dev,
 		"start:0x%llx end:0x%llx offset:0x%llx, legth:0x%llx",
 		vma->vm_start, vma->vm_end, vma->vm_pgoff, length);
 	/*  */
@@ -1219,7 +1235,7 @@ static int mtk_hcp_mmap(struct file *file, struct vm_area_struct *vma)
 
 	if (pfn) {
 		mblock->mmap_cnt += 1;
-		dev_info(hcp_dev->dev, "reserved_memory_id:%d, pfn:0x%llx, mmap_cnt:%d\n",
+		dev_dbg(hcp_dev->dev, "reserved_memory_id:%d, pfn:0x%llx, mmap_cnt:%d\n",
 			reserved_memory_id, pfn,
 			mblock->mmap_cnt);
 
@@ -1277,7 +1293,7 @@ static int mtk_hcp_mmap(struct file *file, struct vm_area_struct *vma)
 		hcp_dev->extmem.d_va, hcp_dev->extmem.d_pa);
 		#endif
 remap:
-	dev_info(hcp_dev->dev, "remap info id(%d) start:0x%llx pgoff:0x%llx page_prot:0x%llx length:0x%llx",
+	dev_dbg(hcp_dev->dev, "remap info id(%d) start:0x%llx pgoff:0x%llx page_prot:0x%llx length:0x%llx",
 		reserved_memory_id, vma->vm_start, vma->vm_pgoff, vma->vm_page_prot, length);
 	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 		length, vma->vm_page_prot) != 0) {
@@ -1375,7 +1391,7 @@ static long mtk_hcp_ioctl(struct file *file, unsigned int cmd,
 			} else if (buffer.info.cmd == HCP_NOTIFY) {
 				module_notify(hcp_dev, &buffer);
 			} else {
-				pr_info("[HCP] Unknown commands 0x%p, %d", data.buffer[index],
+				pr_info("[HCP] Unknown command of packet[%u] cmd:%d", index,
 					buffer.info.cmd);
 				return ret;
 			}
@@ -1486,7 +1502,7 @@ int hcp_reserve_mem_of_init(struct reserved_mem *rmem)
 {
 	rmem_base_phys = (phys_addr_t) rmem->base;
 	rmem_size = (phys_addr_t) rmem->size;
-	pr_info("%s: phys_addr is 0x%lx with size(0x%lx)",
+	pr_debug("%s: phys_addr is 0x%lx with size(0x%lx)",
 				__func__, rmem_base_phys, rmem_size);
 
 	return 0;

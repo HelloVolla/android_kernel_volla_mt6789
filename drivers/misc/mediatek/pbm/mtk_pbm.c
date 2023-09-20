@@ -528,6 +528,7 @@ void kicker_pbm_by_gpu(bool status, unsigned int loading, int voltage)
 
 	mtk_power_budget_manager(KR_GPU, &mrpmgr);
 }
+EXPORT_SYMBOL(kicker_pbm_by_gpu);
 
 void kicker_pbm_by_flash(bool status)
 {
@@ -674,7 +675,7 @@ static void lookup_tracepoints(struct tracepoint *tp, void *ignore)
 	}
 }
 
-void tracepoint_cleanup(void)
+void pbm_tracepoint_cleanup(void)
 {
 	int i;
 
@@ -783,7 +784,7 @@ static int mt_pbm_manual_mode_proc_show(struct seq_file *m, void *v)
 static ssize_t mt_pbm_manual_mode_proc_write
 (struct file *file, const char __user *buffer, size_t count, loff_t *data)
 {
-	char desc[64], cmd[20];
+	char desc[64], cmd[21];
 	int len = 0, manual_mode = 0;
 	int loading_dlpt, loading_md1;
 	int loading_cpu, loading_gpu, loading_flash;
@@ -827,7 +828,7 @@ static int mt_pbm_stop_proc_show(struct seq_file *m, void *v)
 static ssize_t mt_pbm_stop_proc_write
 (struct file *file, const char __user *buffer, size_t count, loff_t *data)
 {
-	char desc[64], cmd[20];
+	char desc[64], cmd[21];
 	int len = 0, stop = 0;
 
 	len = (count < (sizeof(desc) - 1)) ? count : (sizeof(desc) - 1);
@@ -944,7 +945,7 @@ static int pbm_probe(struct platform_device *pdev)
 	FOR_EACH_INTEREST(i) {
 		if (pbm_tracepoints[i].tp == NULL) {
 			pr_info("pbm Error, %s not found\n", pbm_tracepoints[i].name);
-			tracepoint_cleanup();
+			pbm_tracepoint_cleanup();
 			return -1;
 		}
 	}

@@ -15,6 +15,14 @@
 #include "ufsfeature.h"
 #endif
 
+/* UFSHCD error handling flags */
+enum {
+	UFSHCD_EH_IN_PROGRESS = (1 << 0),
+};
+
+#define ufshcd_eh_in_progress(h) \
+	((h)->eh_flags & UFSHCD_EH_IN_PROGRESS)
+
 /*
  * Vendor specific UFSHCI Registers
  */
@@ -224,6 +232,8 @@ struct ufs_mtk_host {
 	bool qos_enabled;
 	bool boot_device;
 	struct ufs_vreg *vcc;
+
+	struct completion luns_added;
 
 	struct semaphore rpmb_sem;
 #if defined(CONFIG_UFSFEATURE)

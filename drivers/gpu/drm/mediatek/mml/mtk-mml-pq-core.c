@@ -155,31 +155,6 @@ void mml_pq_comp_config_clear(struct mml_task *task)
 	}
 }
 
-static s32 remove_sub_task(struct mml_pq_chan *chan, u64 job_id)
-{
-	struct mml_pq_sub_task *sub_task = NULL, *tmp = NULL;
-	s32 ret = 0;
-
-	mml_pq_trace_ex_begin("%s", __func__);
-	mml_pq_msg("%s chan[%p] job_id[%llx]", __func__, chan, job_id);
-
-	mutex_lock(&chan->job_lock);
-	list_for_each_entry_safe(sub_task, tmp, &chan->job_list, mbox_list) {
-		mml_pq_msg("%s sub_task[%p] chan->job_list[%p] sub_job_id[%llx]",
-			__func__, sub_task, &chan->job_list, sub_task->job_id);
-		if (sub_task->job_id == job_id) {
-			mml_pq_msg("%s find sub_task:%p id:%llx",
-				__func__, sub_task, job_id);
-			list_del(&sub_task->mbox_list);
-			break;
-		}
-	}
-	mutex_unlock(&chan->job_lock);
-
-	mml_pq_trace_ex_end();
-	return ret;
-}
-
 static s32 find_sub_task(struct mml_pq_chan *chan, u64 job_id,
 			struct mml_pq_sub_task **out_sub_task)
 {
@@ -308,8 +283,23 @@ static void release_pq_task(struct kref *ref)
 	kfree(pq_task->aal_readback.readback_data.pipe1_hist);
 	kfree(pq_task->hdr_readback.readback_data.pipe0_hist);
 	kfree(pq_task->hdr_readback.readback_data.pipe1_hist);
+	pq_task->task = NULL;
 
 	kfree(pq_task);
+	mml_pq_trace_ex_end();
+}
+
+static void remove_sub_task(struct mml_pq_task *pq_task, struct mml_pq_chan *chan,
+			    struct mml_pq_sub_task *sub_task)
+{
+	mml_pq_trace_ex_begin("pq core %s", __func__);
+	mml_pq_msg("%s chan[%p] sub_task[%p]", __func__, chan, sub_task);
+
+	mutex_lock(&chan->job_lock);
+	list_del(&sub_task->mbox_list);
+	mutex_unlock(&chan->job_lock);
+	kref_put(&pq_task->ref, release_pq_task);
+
 	mml_pq_trace_ex_end();
 }
 
@@ -413,9 +403,8 @@ void mml_pq_task_release(struct mml_task *task)
 {
 	struct mml_pq_task *pq_task = task->pq_task;
 
-	pq_task->task = NULL;
-	task->pq_task = NULL;
 	kref_put(&pq_task->ref, release_pq_task);
+	task->pq_task = NULL;
 }
 
 static struct mml_pq_task *from_tile_init(struct mml_pq_sub_task *sub_task)
@@ -1450,7 +1439,7 @@ static int mml_pq_aal_readback_ioctl(unsigned long data)
 	}
 
 	atomic_dec_if_positive(&new_sub_task->queued);
-	remove_sub_task(chan, new_sub_task->job_id);
+	remove_sub_task(new_pq_task, chan, new_sub_task);
 
 	mml_pq_msg("%s end job_id[%d]\n", __func__, job->new_job_id);
 	kfree(job);
@@ -1459,7 +1448,7 @@ static int mml_pq_aal_readback_ioctl(unsigned long data)
 
 wake_up_aal_readback_task:
 	atomic_dec_if_positive(&new_sub_task->queued);
-	remove_sub_task(chan, new_sub_task->job_id);
+	remove_sub_task(new_pq_task, chan, new_sub_task);
 	kfree(readback);
 	kfree(job);
 	cancel_sub_task(new_sub_task);
@@ -1581,7 +1570,7 @@ static int mml_pq_hdr_readback_ioctl(unsigned long data)
 
 
 	atomic_dec_if_positive(&new_sub_task->queued);
-	remove_sub_task(chan, new_sub_task->job_id);
+	remove_sub_task(new_pq_task, chan, new_sub_task);
 
 	mml_pq_msg("%s end job_id[%d]\n", __func__, job->new_job_id);
 	kfree(job);
@@ -1590,7 +1579,7 @@ static int mml_pq_hdr_readback_ioctl(unsigned long data)
 
 wake_up_hdr_readback_task:
 	atomic_dec_if_positive(&new_sub_task->queued);
-	remove_sub_task(chan, new_sub_task->job_id);
+	remove_sub_task(new_pq_task, chan, new_sub_task);
 	kfree(job);
 	kfree(readback);
 	cancel_sub_task(new_sub_task);
@@ -1652,7 +1641,7 @@ static int mml_pq_rsz_callback_ioctl(unsigned long data)
 	}
 
 	atomic_dec_if_positive(&new_sub_task->queued);
-	remove_sub_task(chan, new_sub_task->job_id);
+	remove_sub_task(new_pq_task, chan, new_sub_task);
 
 	mml_pq_msg("%s end job_id[%d]\n", __func__, job->new_job_id);
 	kfree(job);
@@ -1660,7 +1649,7 @@ static int mml_pq_rsz_callback_ioctl(unsigned long data)
 
 wake_up_rsz_callback_task:
 	atomic_dec_if_positive(&new_sub_task->queued);
-	remove_sub_task(chan, new_sub_task->job_id);
+	remove_sub_task(new_pq_task, chan, new_sub_task);
 	kfree(job);
 	cancel_sub_task(new_sub_task);
 	mml_pq_msg("%s end %d\n", __func__, ret);
@@ -1748,6 +1737,7 @@ void mml_pq_core_uninit(void)
 	pq_mbox = NULL;
 }
 
+static DEFINE_MUTEX(ut_mutex);
 static s32 ut_case;
 static bool ut_inited;
 static struct list_head ut_mml_tasks;
@@ -1764,10 +1754,12 @@ static void ut_init()
 
 static void destroy_ut_task(struct mml_task *task)
 {
-	mml_pq_log("destroy mml_task for PQ UT [%lu.%lu]",
+	mml_pq_log("destroy mml_task for PQ UT [%lld.%lu]",
 		task->end_time.tv_sec, task->end_time.tv_nsec);
+	mutex_lock(&ut_mutex);
 	list_del(&task->entry);
 	ut_task_cnt--;
+	mutex_unlock(&ut_mutex);
 	kfree(task->config);
 	kfree(task);
 }
@@ -1778,7 +1770,7 @@ static int run_ut_task_threaded(void *data)
 	struct mml_task *task_check = mml_core_create_task();
 	s32 ret;
 
-	mml_pq_log("start run mml_task for PQ UT [%lu.%lu]\n",
+	mml_pq_log("start run mml_task for PQ UT [%lld.%lu]\n",
 		task->end_time.tv_sec, task->end_time.tv_nsec);
 
 	if (memcmp(task, task_check, sizeof(struct mml_task)))
@@ -1810,10 +1802,12 @@ static void create_ut_task(const char *case_name)
 	mml_pq_log("start create task for %s\n", case_name);
 	INIT_LIST_HEAD(&task->entry);
 	ktime_get_ts64(&task->end_time);
+	mutex_lock(&ut_mutex);
 	list_add_tail(&task->entry, &ut_mml_tasks);
 	ut_task_cnt++;
+	mutex_unlock(&ut_mutex);
 
-	mml_pq_log("[mml] created mml_task for PQ UT [%lu.%lu]\n",
+	mml_pq_log("[mml] created mml_task for PQ UT [%lld.%lu]\n",
 		task->end_time.tv_sec, task->end_time.tv_nsec);
 	thr = kthread_run(run_ut_task_threaded, task, case_name);
 	if (IS_ERR(thr)) {
@@ -1826,7 +1820,9 @@ static s32 ut_set(const char *val, const struct kernel_param *kp)
 {
 	s32 result;
 
+	mutex_lock(&ut_mutex);
 	ut_init();
+	mutex_unlock(&ut_mutex);
 	result = sscanf(val, "%d", &ut_case);
 	if (result != 1) {
 		mml_pq_err("invalid input: %s, result(%d)\n", val, result);
@@ -1853,16 +1849,20 @@ static s32 ut_get(char *buf, const struct kernel_param *kp)
 	u32 i = 0;
 	struct mml_task *task;
 
+	mutex_lock(&ut_mutex);
 	ut_init();
+	mutex_unlock(&ut_mutex);
 	switch (ut_case) {
 	case 0:
+		mutex_lock(&ut_mutex);
 		length += snprintf(buf + length, PAGE_SIZE - length,
 			"current UT task count: %d\n", ut_task_cnt);
 		list_for_each_entry(task, &ut_mml_tasks, entry) {
 			length += snprintf(buf + length, PAGE_SIZE - length,
-				"  - [%d] task submit time: %lu.%lu\n", i,
+				"  - [%d] task submit time: %lld.%lu\n", i,
 				task->end_time.tv_sec, task->end_time.tv_nsec);
 		}
+		mutex_unlock(&ut_mutex);
 		break;
 	default:
 		pr_notice("not support read for case_id: %d\n", ut_case);

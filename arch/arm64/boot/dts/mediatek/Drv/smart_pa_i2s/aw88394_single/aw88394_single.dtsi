@@ -1,0 +1,25 @@
+#include "./mt6789/custom.h"
+
+
+
+
+/* AWINIC AW883XX Smart PA mono*/
+&I2C_NUM {
+	aw883xx_smartpa_0: aw883xx_smartpa_0@I2C_DTS_ADRR {  //DA1:0  DA2:0
+		compatible = "awinic,aw883xx_smartpa";
+		reg = <I2C_ADDR>;
+		#sound-dai-cells = <0>;
+		reset-gpio = <&pio RST_GPIO 0>;
+		sound-channel = <0>;
+		re-min = <1000>;
+		re-max= <40000>;
+		rename-flag= <1>;
+		status = "okay";
+	};
+};
+&sound {
+	mediatek,spk-i2s = <I2S_OUT_NUM I2S_IN_NUM>;
+	mediatek,speaker-codec {
+		sound-dai = <&aw883xx_smartpa_0>;
+	};
+};

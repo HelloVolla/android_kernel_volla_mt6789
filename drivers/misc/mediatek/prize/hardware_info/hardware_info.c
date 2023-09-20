@@ -255,6 +255,10 @@ static void dev_get_current_lcm_info(char *buf)
 	#endif
 	}
 
+	strcpy(current_lcm_info.chip,"ICNL9911C");
+	strcpy(current_lcm_info.id,"0x50");
+	strcpy(current_lcm_info.vendor,"ICNL");
+	strcpy(current_lcm_info.more,"720x1560");
 
 	p += sprintf(p, "[LCM]:\n");
 	p += sprintf(p, "  chip:%s\n", current_lcm_info.chip);
@@ -691,7 +695,7 @@ static void dev_get_AudioParam_version_info(char *buf)
 	   char *p = buf;
 	   char databuf[100]={0};
 	   
-	   sprintf(databuf, "%s\n","chip:AW88394CSR\nproduct:GX4\nversion:V4-20220921\n");
+	   sprintf(databuf, "%s\n","chip:AW88394CSR\nproduct:GX4\nversion:V6-20230201\n");
 /*	   struct file *fp = NULL;
 	   mm_segment_t fs;
 	   loff_t pos;

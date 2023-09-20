@@ -54,6 +54,7 @@
 // prize add by linchong 20210630 start
 #define AFDRV_GT9767AF "GT9767AF"
 // prize add by linchong 20210630 end
+#define AFDRV_GT9768AF "GT9768AF"
 #define AFDRV_GT9778AF "GT9778AF"
 #define AFDRV_LC898122AF "LC898122AF"
 #define AFDRV_LC898212AF "LC898212AF"

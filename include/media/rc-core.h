@@ -311,8 +311,11 @@ struct ir_raw_event {
 
 #define US_TO_NS(usec)		((usec) * 1000)
 #define MS_TO_US(msec)		((msec) * 1000)
-#define IR_MAX_DURATION		MS_TO_US(500)
-#define IR_DEFAULT_TIMEOUT	MS_TO_US(125)
+/* irtx Unable to send long code 20230317 start */
+#define MS_TO_NS(msec)		((msec) * 1000 * 1000)
+#define IR_MAX_DURATION         500000000	/* 500 ms */
+#define IR_DEFAULT_TIMEOUT	MS_TO_NS(125)
+/* irtx Unable to send long code 20230317 end */
 
 void ir_raw_event_handle(struct rc_dev *dev);
 int ir_raw_event_store(struct rc_dev *dev, struct ir_raw_event *ev);

@@ -63,3 +63,35 @@ config PRIZE_TYPEC_POSITIVE_NEGATIVE
 	help
 	  hardware_info. If configures to be n, means devices doesn't support
 	  hardwareinfo functionality.
+	  
+#prize add by lipengpeng 20230207 start
+config PRIZE_UFS_LIFE_SUPPORT
+	tristate "typec pt ne"
+	default n
+	help
+	  hardware_info. If configures to be n, means devices doesn't support
+	  hardwareinfo functionality.
+	  
+#prize add by lipengpeng 20230207 end 
+config PRIZE_DMR009
+	tristate "dmr099 driver"
+	default n
+	help
+	  hardware_info. If configures to be n, means devices doesn't support
+	  hardwareinfo functionality.
+
+#prize add by liuxuhui for modify send lcm param to light sensor
+config PRIZE_PIXEL_MANAGER      
+        tristate "pixel manager enable"
+        default n
+        help
+          Select m to enable prize pixel manager
+
+#DRV added by chenjiaxi, add lpddr 8802 info (for ufs kernel-5.10), start
+config PRIZE_HARDWARE_LPDDR_INFO
+	tristate "hardware lpddr info"
+	default n
+	help
+	  hardware lpddr info. If configures to be n, means devices doesn't support
+	  hardware lpddr info functionality.
+#DRV added by chenjiaxi, add lpddr 8802 info (for ufs kernel-5.10), end

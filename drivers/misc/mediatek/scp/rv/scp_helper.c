@@ -77,6 +77,8 @@ unsigned int scp_ready[SCP_CORE_TOTAL];
 /* scp enable status*/
 unsigned int scp_enable[SCP_CORE_TOTAL];
 
+bool system_shutdown;
+
 /* scp dvfs variable*/
 unsigned int last_scp_expected_freq;
 unsigned int scp_expected_freq;
@@ -2565,6 +2567,11 @@ static int scp_device_probe(struct platform_device *pdev)
 	return ret;
 }
 
+static void scp_device_shutdown(struct platform_device *dev)
+{
+	system_shutdown = true;
+}
+
 static int scp_device_remove(struct platform_device *dev)
 {
 	if (scp_mbox_info) {
@@ -2610,6 +2617,7 @@ static const struct of_device_id scp_of_ids[] = {
 
 static struct platform_driver mtk_scp_device = {
 	.probe = scp_device_probe,
+	.shutdown = scp_device_shutdown,
 	.remove = scp_device_remove,
 	.driver = {
 		.name = "scp",
@@ -2627,6 +2635,7 @@ static const struct of_device_id scpsys_of_ids[] = {
 };
 
 static struct platform_driver mtk_scpsys_device = {
+	.probe = scpsys_device_probe,
 	.driver = {
 		.name = "scpsys",
 		.owner = THIS_MODULE,
@@ -2696,7 +2705,7 @@ static int __init scp_init(void)
 		goto err_without_unregister;
 	}
 
-	ret = platform_driver_probe(&mtk_scpsys_device, scpsys_device_probe);
+	ret = platform_driver_register(&mtk_scpsys_device);
 	if (ret) {
 		pr_notice("[SCP] scpsys probe fail %d\n", ret);
 		BUG_ON(1);
@@ -2793,7 +2802,8 @@ static int __init scp_init(void)
 #endif
 
 	driver_init_done = true;
-	reset_scp(SCP_ALL_ENABLE);
+	if (!system_shutdown)
+		reset_scp(SCP_ALL_ENABLE);
 
 #if SCP_DVFS_INIT_ENABLE
 	if (scp_dvfs_feature_enable())

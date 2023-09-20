@@ -141,11 +141,18 @@
 
 #define U3P_U2PHYDTM1		0x06C
 #define P2C_RG_UART_EN			BIT(16)
+#define P2C_FORCE_VBUSVALID		BIT(13)
+#define P2C_FORCE_SESSEND		BIT(12)
+#define P2C_FORCE_BVALID		BIT(11)
+#define P2C_FORCE_AVALID		BIT(10)
 #define P2C_FORCE_IDDIG		BIT(9)
+#define P2C_FORCE_IDPULLUP		BIT(8)
 #define P2C_RG_VBUSVALID		BIT(5)
 #define P2C_RG_SESSEND			BIT(4)
+#define P2C_RG_BVALID			BIT(3)
 #define P2C_RG_AVALID			BIT(2)
 #define P2C_RG_IDDIG			BIT(1)
+#define P2C_RG_RG_IDPULLUP		BIT(0)
 
 #define U3P_U2PHYBC12C		0x080
 #define P2C_RG_CHGDT_EN		BIT(0)
@@ -420,6 +427,7 @@ struct mtk_phy_instance {
 	int eye_term_host;
 	int rev6_host;
 	struct proc_dir_entry *phy_root;
+	bool usb_special_phy_settings;
 };
 
 struct mtk_tphy {
@@ -1540,6 +1548,19 @@ static void u2_phy_instance_power_on(struct mtk_tphy *tphy,
 		tmp |= P2C_RG_SUSPENDM | P2C_FORCE_SUSPENDM;
 		writel(tmp, com + U3P_U2PHYDTM0);
 	}
+#if IS_ENABLED(CONFIG_USB_MTK_HDRC)
+	if (instance->usb_special_phy_settings) {
+		/* Used by phone products */
+		/* HQA Setting */
+		tmp = readl(com + U3P_USBPHYACR6);
+		tmp &= ~PA6_RG_U2_DISCTH;
+		if (instance->discth)
+			tmp |= PA6_RG_U2_DISCTH_VAL(instance->discth);
+		else
+			tmp |= PA6_RG_U2_DISCTH_VAL(0xf);
+		writel(tmp, com + U3P_USBPHYACR6);
+	}
+#endif
 	dev_info(tphy->dev, "%s(%d)\n", __func__, index);
 }
 
@@ -1654,13 +1675,40 @@ static void u2_phy_instance_set_mode(struct mtk_tphy *tphy,
 			u2_phy_host_props_set(tphy, instance);
 			tmp |= P2C_FORCE_IDDIG;
 			tmp &= ~P2C_RG_IDDIG;
+#if IS_ENABLED(CONFIG_USB_MTK_HDRC)
+			if (instance->usb_special_phy_settings) {
+				/* Used by phone products */
+				tmp |= P2C_RG_VBUSVALID | P2C_RG_BVALID | P2C_RG_AVALID;
+				tmp &= ~P2C_RG_SESSEND;
+			}
+#endif
 			break;
 		case PHY_MODE_USB_OTG:
 			tmp &= ~(P2C_FORCE_IDDIG | P2C_RG_IDDIG);
 			break;
+#if IS_ENABLED(CONFIG_USB_MTK_HDRC)
+		case PHY_MODE_INVALID:
+			if (instance->usb_special_phy_settings) {
+				/* Used by phone products */
+				tmp |= P2C_RG_SESSEND | P2C_RG_RG_IDPULLUP;
+				tmp &= ~(P2C_RG_VBUSVALID | P2C_RG_BVALID | P2C_RG_AVALID |
+					P2C_RG_IDDIG);
+				tmp |= P2C_FORCE_IDDIG;
+			} else
+				return;
+			break;
+#endif
+
 		default:
 			return;
 		}
+#if IS_ENABLED(CONFIG_USB_MTK_HDRC)
+		if (instance->usb_special_phy_settings) {
+		/* Used by phone products */
+			tmp |= P2C_FORCE_VBUSVALID | P2C_FORCE_SESSEND | P2C_FORCE_BVALID |
+				P2C_FORCE_AVALID | P2C_FORCE_IDPULLUP;
+		}
+#endif
 		writel(tmp, u2_banks->com + U3P_U2PHYDTM1);
 	} else {
 		switch (submode) {
@@ -1740,16 +1788,19 @@ static void u3_phy_instance_power_off(struct mtk_tphy *tphy,
 	struct mtk_phy_instance *instance)
 {
 	struct u3phy_banks *bank = &instance->u3_banks;
+	enum phy_mode mode = instance->phy->attrs.mode;
 	u32 index = instance->index;
 	u32 tmp;
 
-	tmp = readl(bank->chip + U3P_U3_CHIP_GPIO_CTLD);
-	tmp |= P3C_FORCE_IP_SW_RST | P3C_REG_IP_SW_RST;
-	writel(tmp, bank->chip + U3P_U3_CHIP_GPIO_CTLD);
+	if (mode !=  PHY_MODE_USB_HOST) {
+		tmp = readl(bank->chip + U3P_U3_CHIP_GPIO_CTLD);
+		tmp |= P3C_FORCE_IP_SW_RST | P3C_REG_IP_SW_RST;
+		writel(tmp, bank->chip + U3P_U3_CHIP_GPIO_CTLD);
 
-	tmp = readl(bank->chip + U3P_U3_CHIP_GPIO_CTLE);
-	tmp |= P3C_RG_SWRST_U3_PHYD_FORCE_EN | P3C_RG_SWRST_U3_PHYD;
-	writel(tmp, bank->chip + U3P_U3_CHIP_GPIO_CTLE);
+		tmp = readl(bank->chip + U3P_U3_CHIP_GPIO_CTLE);
+		tmp |= P3C_RG_SWRST_U3_PHYD_FORCE_EN | P3C_RG_SWRST_U3_PHYD;
+		writel(tmp, bank->chip + U3P_U3_CHIP_GPIO_CTLE);
+	}
 
 	dev_info(tphy->dev, "%s(%d)\n", __func__, index);
 }
@@ -2006,6 +2057,9 @@ static void phy_parse_property(struct mtk_tphy *tphy,
 				&instance->pll_bw);
 	device_property_read_u32(dev, "mediatek,bgr-div",
 				&instance->bgr_div);
+	instance->usb_special_phy_settings = device_property_read_bool(dev,
+				"mediatek,usb-special-phy-settings");
+
 	dev_dbg(dev, "bc12:%d, src:%d, vrt:%d, term:%d, intr:%d\n",
 		instance->bc12_en, instance->eye_src,
 		instance->eye_vrt, instance->eye_term, instance->intr);
@@ -2017,6 +2071,7 @@ static void phy_parse_property(struct mtk_tphy *tphy,
 	dev_dbg(dev, "rev4:%d, rev6:%d, rev6_host:%d\n", instance->rev4, instance->rev6,
 		instance->rev6_host);
 	dev_dbg(dev, "pll-bw:%d, bgr-div:%d\n", instance->pll_bw, instance->bgr_div);
+	dev_dbg(dev, "usb-special-phy-settings:%d\n", instance->usb_special_phy_settings);
 }
 
 static void u2_phy_props_set(struct mtk_tphy *tphy,
@@ -2123,28 +2178,28 @@ static void u2_phy_host_props_set(struct mtk_tphy *tphy,
 	if (instance->eye_src_host) {
 		tmp = readl(com + U3P_USBPHYACR5);
 		tmp &= ~PA5_RG_U2_HSTX_SRCTRL;
-		tmp |= PA5_RG_U2_HSTX_SRCTRL_VAL(instance->eye_src);
+		tmp |= PA5_RG_U2_HSTX_SRCTRL_VAL(instance->eye_src_host);
 		writel(tmp, com + U3P_USBPHYACR5);
 	}
 
 	if (instance->eye_vrt_host) {
 		tmp = readl(com + U3P_USBPHYACR1);
 		tmp &= ~PA1_RG_VRT_SEL;
-		tmp |= PA1_RG_VRT_SEL_VAL(instance->eye_vrt);
+		tmp |= PA1_RG_VRT_SEL_VAL(instance->eye_vrt_host);
 		writel(tmp, com + U3P_USBPHYACR1);
 	}
 
 	if (instance->eye_term_host) {
 		tmp = readl(com + U3P_USBPHYACR1);
 		tmp &= ~PA1_RG_TERM_SEL;
-		tmp |= PA1_RG_TERM_SEL_VAL(instance->eye_term);
+		tmp |= PA1_RG_TERM_SEL_VAL(instance->eye_term_host);
 		writel(tmp, com + U3P_USBPHYACR1);
 	}
 
 	if (instance->rev6_host) {
 		tmp = readl(com + U3P_USBPHYACR6);
 		tmp &= ~PA6_RG_U2_PHY_REV6;
-		tmp |= PA6_RG_U2_PHY_REV6_VAL(instance->rev6);
+		tmp |= PA6_RG_U2_PHY_REV6_VAL(instance->rev6_host);
 		writel(tmp, com + U3P_USBPHYACR6);
 	}
 }

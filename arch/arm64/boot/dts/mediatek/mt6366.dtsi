@@ -33,7 +33,8 @@
 			accdet-name = "mt6358-accdet";
 			/* accdet micbias voltage: 0x07,2.7v;0x05,2.5v;0x02,1.9v */
 			accdet-mic-vol = <6>;
-			headset-mode-setting = <0x500 0x500 1 0x1f0 0x800 0x800 0x20 0x44>;
+			headset-mode-setting = <0x500 0x500 1 0x1f0 0x800 0x800 0x20 0x44>,
+						< 0x0 0x0 0xe 0x0 0x0 0x0 0x0 0x0>;
 			accdet-plugout-debounce = <1>;
 			/*1:ACC mode, 2:low cost without in bias, 6:low cost with in bias*/
 			accdet-mic-mode = <1>;
@@ -110,7 +111,7 @@
 			};
 			imp {
 				channel = <AUXADC_IMP>;
-				resistance-ratio = <7 2>;
+				resistance-ratio = <3 1>;
 				avg-num = <128>;
 			};
 			imix_r {
@@ -302,6 +303,7 @@
 				regulator-min-microvolt = <2800000>;
 				regulator-max-microvolt = <2800000>;
 				regulator-enable-ramp-delay = <270>;
+				regulator-always-on;
 			};
 
 			mt6358_vsram_others_reg: ldo_vsram_others {
@@ -483,6 +485,20 @@
 				regulator-max-microvolt = <900000>;
 				regulator-enable-ramp-delay = <264>;
 				/*by platform setting: regulator-boot-on;*/
+			};
+
+			mt6358_vmch_eint_high: VMCH_EINT_HIGH {
+				regulator-name = "mt6358_vmch_eint_high";
+				regulator-min-microvolt = <2900000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-enable-ramp-delay = <60>;
+			};
+
+			mt6358_vmch_eint_low: VMCH_EINT_LOW {
+				regulator-name = "mt6358_vmch_eint_low";
+				regulator-min-microvolt = <2900000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-enable-ramp-delay = <60>;
 			};
 		};
 

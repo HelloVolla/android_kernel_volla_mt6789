@@ -1,6 +1,8 @@
 #ifndef CTS_CORE_H
 #define CTS_CORE_H
 
+#include <linux/power_supply.h>
+
 #include "cts_config.h"
 
 enum cts_dev_hw_reg {
@@ -318,7 +320,9 @@ struct chipone_ts_data {
 #if IS_ENABLED(CONFIG_DRM_MEDIATEK)
 	struct notifier_block disp_notifier;
 #endif
-
+#ifdef CFG_CTS_GESTURE
+	struct power_supply *sw_psy;
+#endif
 
 };
 
@@ -621,6 +625,9 @@ extern void cts_disable_gesture_wakeup(struct cts_device *cts_dev);
 extern bool cts_is_gesture_wakeup_enabled(const struct cts_device *cts_dev);
 extern int  cts_get_gesture_info(const struct cts_device *cts_dev,
         void *gesture_info, bool trace_point);
+//extern bool is_gesture_wakeup_enabled(void);
+extern struct chipone_ts_data *g_cts_data;
+extern int gesture_init(void);
 #endif /* CFG_CTS_GESTURE */
 
 #ifdef CONFIG_CTS_ESD_PROTECTION

@@ -308,6 +308,16 @@ static long semi_touch_ioctl(struct file* fp, unsigned int op_type, unsigned lon
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
+static const struct proc_ops semi_touch_proc_opts =
+{
+    .proc_write = semi_touch_proc_write,
+    .proc_read  = semi_touch_proc_read,
+    .proc_ioctl =semi_touch_ioctl,
+    #ifdef CONFIG_COMPAT
+    .proc_compat_ioctl = semi_touch_ioctl,
+    #endif
+};
+#if 0
 static const struct file_operations semi_touch_proc_opts = 
 {
     .owner = THIS_MODULE,
@@ -316,6 +326,7 @@ static const struct file_operations semi_touch_proc_opts =
     .compat_ioctl = semi_touch_ioctl,
     .unlocked_ioctl = semi_touch_ioctl,
 };
+#endif
 #endif
 
 int semi_touch_create_apk_proc(struct sm_touch_dev* st_dev)

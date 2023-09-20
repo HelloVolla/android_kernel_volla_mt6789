@@ -394,6 +394,10 @@ static int mtk_camsv_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	stream_data = mtk_cam_req_get_s_data_no_chk(cam_req, pipe->id, 0);
+	if (!stream_data) {
+		dev_info(cam->dev, "stream data is null\n");
+		return 0;
+	}
 	stream_data->pad_fmt_update |= (1 << fmt->pad);
 	stream_data->pad_fmt[fmt->pad] = *fmt;
 
@@ -802,11 +806,64 @@ static int push_msgfifo(struct mtk_camsv_device *dev,
 
 void sv_reset(struct mtk_camsv_device *dev)
 {
-	int sw_ctl;
+	int sw_ctl, smi_dbg_data;
 	int ret;
 
 	dev_dbg(dev->dev, "%s camsv_id:%d\n", __func__, dev->id);
 
+	writel(0, dev->base + REG_CAMSV_SW_CTL);
+	writel(1, dev->base + REG_CAMSV_SW_CTL);
+	wmb(); /* make sure committed */
+
+	ret = readx_poll_timeout(readl, dev->base + REG_CAMSV_SW_CTL, sw_ctl,
+				 sw_ctl & 0x2,
+				 1 /* delay, us */,
+				 100000 /* timeout, us */);
+	if (ret < 0) {
+		dev_info(dev->dev, "%s: timeout\n", __func__);
+
+		dev_info(dev->dev,
+			 "tg_sen_mode: 0x%x, ctl_en: 0x%x, ctl_sw_ctl:0x%x, frame_no:0x%x\n",
+			 readl(dev->base + REG_CAMSV_TG_SEN_MODE),
+			 readl(dev->base + REG_CAMSV_MODULE_EN),
+			 readl(dev->base + REG_CAMSV_SW_CTL),
+			 readl(dev->base + REG_CAMSV_FRAME_SEQ_NO)
+			);
+
+		mtk_smi_dbg_hang_detect("camsys-camsv");
+
+		goto RESET_FAILURE;
+	}
+
+	/* wait for fifo to be empty before adjust max burst length */
+	writel(0x00000800, dev->base + REG_CAMSV_DMATOP_DMA_DEBUG_SEL);
+	wmb(); /* make sure committed */
+	ret = readx_poll_timeout(readl, dev->base + REG_CAMSV_DMATOP_DMA_DEBUG_PORT, smi_dbg_data,
+				 smi_dbg_data & 0x2000,
+				 1 /* delay, us */,
+				 1000 /* timeout, us */);
+	if (ret < 0)
+		dev_info(dev->dev, "%s: wait for fifo to be empty timeout(smi debug data:0x%x)\n",
+			__func__, readl(dev->base + REG_CAMSV_DMATOP_DMA_DEBUG_PORT));
+	else {
+		dev_info(dev->dev, "%s: set max burst length to 1\n", __func__);
+		if (dev->id < CAMSV_10)
+			writel(0x01000300, dev->base_inner + REG_CAMSV_IMGO_CON0);
+		else
+			writel(0x01000080, dev->base_inner + REG_CAMSV_IMGO_CON0);
+	}
+	/* wait for fifo to be empty after adjust max burst length */
+	writel(0x00000800, dev->base + REG_CAMSV_DMATOP_DMA_DEBUG_SEL);
+	wmb(); /* make sure committed */
+	ret = readx_poll_timeout(readl, dev->base + REG_CAMSV_DMATOP_DMA_DEBUG_PORT, smi_dbg_data,
+				 smi_dbg_data & 0x2000,
+				 1 /* delay, us */,
+				 1000 /* timeout, us */);
+	if (ret < 0)
+		dev_info(dev->dev, "%s: wait for fifo to be empty timeout(smi debug data:0x%x)\n",
+			__func__, readl(dev->base + REG_CAMSV_DMATOP_DMA_DEBUG_PORT));
+
+	/* reset dma again */
 	writel(0, dev->base + REG_CAMSV_SW_CTL);
 	writel(1, dev->base + REG_CAMSV_SW_CTL);
 	wmb(); /* make sure committed */
@@ -1778,7 +1835,7 @@ void mtk_cam_sv_apply_frame_setting(
 	} else {
 		mtk_cam_sv_vf_on(camsv_dev, 0);
 		if (watchdog_scenario(ctx))
-			mtk_ctx_watchdog_stop(ctx, s_data->pipe_id);
+			mtk_ctx_watchdog_stop(ctx, s_data->pipe_id, 0);
 	}
 }
 
@@ -1841,9 +1898,11 @@ int mtk_cam_sv_apply_all_buffers(struct mtk_cam_ctx *ctx, bool is_check_ts)
 		}
 		buf_entry = list_first_entry(&ctx->sv_using_buffer_list[i].list,
 				struct mtk_camsv_working_buf_entry, list_entry);
+
+#if STAGGER_CQ_LAST_SOF == 0
 		if (mtk_cam_sv_is_vf_on(camsv_dev) &&
 			(ctx->used_raw_num != 0) && is_check_ts) {
-			if (buf_entry->is_stagger == 0) {
+			if (buf_entry->is_stagger == 1) {
 				if ((buf_entry->ts_sv == 0) ||
 					((buf_entry->ts_sv < buf_entry->ts_raw) &&
 					((buf_entry->ts_raw - buf_entry->ts_sv) > 10000000))) {
@@ -1856,6 +1915,7 @@ int mtk_cam_sv_apply_all_buffers(struct mtk_cam_ctx *ctx, bool is_check_ts)
 				}
 			}
 		}
+#endif
 		list_del(&buf_entry->list_entry);
 		ctx->sv_using_buffer_list[i].cnt--;
 		spin_unlock(&ctx->sv_using_buffer_list[i].lock);
@@ -2037,8 +2097,14 @@ int mtk_cam_sv_dev_config(
 	int ret, pad_idx;
 	int cfg_pixel_mode = pixelmode;
 	int stride;
+	int user_ctl_idx;
 
 	if (hw_scen & MTK_CAMSV_SUPPORTED_SPECIAL_HW_SCENARIO) {
+		if (!ctx->pipe) {
+			dev_info(dev, "%s failed, ctx->pipe is null", __func__);
+			return -EINVAL;
+		}
+
 		if (hw_scen & (1 << MTKCAM_SV_SPECIAL_SCENARIO_ADDITIONAL_RAW)) {
 			img_fmt = &ctx->pipe->vdev_nodes[
 				MTK_RAW_MAIN_STREAM_SV_1_OUT - MTK_RAW_SINK_NUM].active_fmt;
@@ -2078,11 +2144,12 @@ int mtk_cam_sv_dev_config(
 			mf = &ctx->pipe->cfg[MTK_RAW_SINK].mbus_fmt;
 		}
 	} else {
-		img_fmt = &ctx->sv_pipe[idx]
+		user_ctl_idx = idx % MAX_SV_PIPES_PER_STREAM;
+		img_fmt = &ctx->sv_pipe[user_ctl_idx]
 			->vdev_nodes[MTK_CAMSV_MAIN_STREAM_OUT-MTK_CAMSV_SINK_NUM].active_fmt;
 		size_img_fmt = img_fmt;
-		pad_idx = ctx->sv_pipe[idx]->seninf_padidx;
-		mf = &ctx->sv_pipe[idx]->cfg[MTK_CAMSV_SINK].mbus_fmt;
+		pad_idx = ctx->sv_pipe[user_ctl_idx]->seninf_padidx;
+		mf = &ctx->sv_pipe[user_ctl_idx]->cfg[MTK_CAMSV_SINK].mbus_fmt;
 	}
 
 	/* Update cfg_in_param */
@@ -2099,11 +2166,11 @@ int mtk_cam_sv_dev_config(
 	stride = img_fmt->fmt.pix_mp.plane_fmt[0].bytesperline;
 	if (mtk_cam_is_ext_isp_yuv(ctx)) {
 		dev_info(dev, "yuv pipeline str:%d feature:%d\n",
-		stride, ctx->pipe->feature_active);
+		stride, (ctx->pipe) ? ctx->pipe->feature_active : 0);
 	}
 	dev_info(dev, "sink pad code:0x%x camsv's imgo w/h/stride:%d/%d/%d feature:%d\n", mf->code,
 		cfg_in_param.in_crop.s.w, cfg_in_param.in_crop.s.h,
-		stride, (ctx->used_raw_num) ? ctx->pipe->feature_active : 0);
+		stride, (ctx->used_raw_num && ctx->pipe) ? ctx->pipe->feature_active : 0);
 	cfg_in_param.raw_pixel_id = mtk_cam_get_sensor_pixel_id(mf->code);
 	cfg_in_param.subsample = 0;
 	cfg_in_param.fmt = img_fmt->fmt.pix_mp.pixelformat;
@@ -2115,12 +2182,18 @@ int mtk_cam_sv_dev_config(
 	if (hw_scen & MTK_CAMSV_SUPPORTED_SPECIAL_HW_SCENARIO) {
 		pm_runtime_get_sync(cam->sv.devs[idx]);
 	} else {
-		ret = mtk_cam_sv_pipeline_config(ctx, idx, &cfg_in_param);
+		user_ctl_idx = idx % MAX_SV_PIPES_PER_STREAM;
+		ret = mtk_cam_sv_pipeline_config(ctx, user_ctl_idx, &cfg_in_param);
 		if (ret)
 			return ret;
 	}
 
 	if (hw_scen & MTK_CAMSV_SUPPORTED_SPECIAL_HW_SCENARIO) {
+		if (!ctx->pipe) {
+			dev_info(dev, "%s failed, ctx->pipe is null", __func__);
+			return -EINVAL;
+		}
+
 		dev_sv = cam->sv.devs[idx];
 		if (dev_sv == NULL) {
 			dev_dbg(dev, "config camsv device not found\n");
@@ -2133,7 +2206,8 @@ int mtk_cam_sv_dev_config(
 		camsv_dev->pipeline->exp_order = exp_order;
 		camsv_dev->sof_count = 0;
 	} else {
-		dev_sv = mtk_cam_find_sv_dev(cam, ctx->used_sv_dev[idx]);
+		user_ctl_idx = idx % MAX_SV_PIPES_PER_STREAM;
+		dev_sv = mtk_cam_find_sv_dev(cam, ctx->used_sv_dev[user_ctl_idx]);
 		if (dev_sv == NULL) {
 			dev_dbg(dev, "config camsv device not found\n");
 			return -EINVAL;
@@ -2197,8 +2271,8 @@ int mtk_cam_sv_dev_stream_on(
 		camsv_dev = dev_get_drvdata(dev_sv);
 		camsv_dev->is_enqueued = 1;
 	} else {
-		if (idx >= CAMSV_PIPELINE_NUM) {
-			dev_info(dev, "index is too big\n");
+		if (idx >= MAX_SV_PIPES_PER_STREAM) {
+			dev_info(dev, "user control index is too big\n");
 			return -1;
 		}
 		dev_sv = mtk_cam_find_sv_dev(cam, ctx->used_sv_dev[idx]);
@@ -2227,7 +2301,7 @@ int mtk_cam_sv_dev_stream_on(
 		if (watchdog_scenario(ctx) &&
 			!(hw_scen & MTK_CAMSV_SUPPORTED_SPECIAL_HW_SCENARIO))
 			mtk_ctx_watchdog_stop(ctx,
-				camsv_dev->id + MTKCAM_SUBDEV_CAMSV_START);
+				camsv_dev->id + MTKCAM_SUBDEV_CAMSV_START, 1);
 
 		ret = mtk_cam_sv_top_disable(camsv_dev) ||
 			mtk_cam_sv_fbc_disable(camsv_dev) ||
@@ -2553,6 +2627,7 @@ static irqreturn_t mtk_irq_camsv(int irq, void *data)
 	unsigned int drop_status, imgo_err_status, imgo_overr_status;
 	unsigned int fbc_imgo_status, imgo_addr, imgo_addr_msb;
 	unsigned int tg_sen_mode, dcif_set, tg_vf_con, tg_path_cfg;
+	unsigned int irq_flag = 0;
 	bool wake_thread = 0;
 
 	irq_status	= readl_relaxed(camsv_dev->base + REG_CAMSV_INT_STATUS);
@@ -2620,8 +2695,8 @@ static irqreturn_t mtk_irq_camsv(int irq, void *data)
 		fbc_imgo_status, imgo_addr, dequeued_imgo_seq_no_inner,
 		dequeued_imgo_seq_no, tg_sen_mode, dcif_set, tg_vf_con, tg_path_cfg);
 	}
-
-	if ((unsigned int)irq_info.irq_type && push_msgfifo(camsv_dev, &irq_info) == 0)
+	irq_flag = irq_info.irq_type;
+	if (irq_flag && push_msgfifo(camsv_dev, &irq_info) == 0)
 		wake_thread = 1;
 
 	/* Check ISP error status */

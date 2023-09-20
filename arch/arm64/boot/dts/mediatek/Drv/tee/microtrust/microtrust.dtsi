@@ -1,0 +1,6 @@
+/* prize pengzhipeng modify  add key 301, 20200103 end */
+//prize add by lipengpeng 20220704 start
+ &utos {
+ 	microtrust,real-drv = <1>;
+ };
+//prize add by lipengpeng 20220704 end

@@ -3571,6 +3571,7 @@ enum {
 	SUPPLY_SEQ_CLK_BUF,
 	SUPPLY_SEQ_AUD_GLB,
 	SUPPLY_SEQ_CLKSQ,
+	SUPPLY_SEQ_ADC_SUPPLY,
 	SUPPLY_SEQ_AUD_VOW,
 	SUPPLY_SEQ_VOW_CLK,
 	SUPPLY_SEQ_VOW_LDO,
@@ -3579,9 +3580,9 @@ enum {
 	SUPPLY_SEQ_AUD_TOP,
 	SUPPLY_SEQ_AUD_TOP_LAST,
 	SUPPLY_SEQ_AFE,
-	SUPPLY_SEQ_MIC_BIAS,
+
 	/* capture */
-	SUPPLY_SEQ_ADC_SUPPLY,
+	SUPPLY_SEQ_MIC_BIAS,
 };
 
 enum {
@@ -3791,6 +3792,8 @@ struct mt6358_priv {
 	int reg_afe_vow_periodic;
 	/* vow dmic low power mode, 1: enable, 0: disable */
 	int vow_dmic_lp;
+
+	int pull_down_stay_enable;
 };
 
 /* dl pga gain */

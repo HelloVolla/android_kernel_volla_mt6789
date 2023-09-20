@@ -15,15 +15,17 @@
 #include <linux/of_irq.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
-
-#if defined(CONFIG_MTK_DRAMC)
+/*
+#if IS_ENABLED(CONFIG_MTK_DRAMC)
 #include "mtk_dramc.h"
 #endif
+*/
 #include "mtk_layering_rule.h"
 #include "mtk_log.h"
 #include "mtk_rect.h"
 #include "mtk_drm_drv.h"
 #include "mtk_drm_graphics_base.h"
+#include "mtk_drm_mmp.h"
 
 #include <soc/mediatek/mmqos.h>
 
@@ -113,9 +115,11 @@ static void layering_rule_scenario_decision(struct drm_device *dev,
 	if (scn_decision_flag & SCN_TRIPLE_DISP) {
 		l_rule_info.addon_scn[HRT_SECONDARY] = TRIPLE_DISP;
 		l_rule_info.addon_scn[HRT_THIRD] = TRIPLE_DISP;
+		l_rule_info.addon_scn[HRT_FOURTH] = TRIPLE_DISP;
 	} else {
 		l_rule_info.addon_scn[HRT_SECONDARY] = NONE;
 		l_rule_info.addon_scn[HRT_THIRD] = NONE;
+		l_rule_info.addon_scn[HRT_FOURTH] = NONE;
 	}
 /*TODO: need MMP support*/
 #ifdef IF_ZERO
@@ -131,7 +135,7 @@ static void filter_by_yuv_layers(struct drm_mtk_layering_info *disp_info)
 	unsigned int disp_idx = 0, i = 0;
 	struct drm_mtk_layer_config *info;
 	unsigned int yuv_gpu_cnt;
-	unsigned int yuv_layer_gpu[12];
+	unsigned int yuv_layer_gpu[MAX_PHY_OVL_CNT];
 	int yuv_layer_ovl = -1;
 
 	for (disp_idx = 0 ; disp_idx < HRT_DISP_TYPE_NUM ; disp_idx++) {
@@ -148,9 +152,13 @@ static void filter_by_yuv_layers(struct drm_mtk_layering_info *disp_info)
 				if (info->secure == 1 &&
 				    yuv_layer_ovl < 0) {
 					yuv_layer_ovl = i;
-				} else {
+				} else if (yuv_gpu_cnt < MAX_PHY_OVL_CNT) {
 					yuv_layer_gpu[yuv_gpu_cnt] = i;
 					yuv_gpu_cnt++;
+				} else {
+					DDPPR_ERR("%s: yuv_gpu_cnt %d over MAX_PHY_OVL_CNT\n",
+						__func__, yuv_gpu_cnt);
+					return;
 				}
 			}
 		}
@@ -176,10 +184,11 @@ static void filter_by_yuv_layers(struct drm_mtk_layering_info *disp_info)
 
 static void filter_2nd_display(struct drm_mtk_layering_info *disp_info)
 {
-	unsigned int i, j, layer_cnt = 0;
+	unsigned int i = 0, j = 0;
 
 	for (i = HRT_SECONDARY; i < HRT_DISP_TYPE_NUM; i++) {
 		unsigned int max_layer_cnt = SECONDARY_OVL_LAYER_NUM;
+		unsigned int layer_cnt = 0;
 
 		if (is_triple_disp(disp_info) && i == HRT_SECONDARY)
 			max_layer_cnt = 1;
@@ -188,7 +197,11 @@ static void filter_2nd_display(struct drm_mtk_layering_info *disp_info)
 				continue;
 
 			layer_cnt++;
-			if (layer_cnt > max_layer_cnt)
+			if (disp_info->layer_num[i] <= SECONDARY_OVL_LAYER_NUM &&
+					layer_cnt > max_layer_cnt)
+				mtk_rollback_layer_to_GPU(disp_info, i, j);
+			else if (disp_info->layer_num[i] > SECONDARY_OVL_LAYER_NUM &&
+					layer_cnt >= max_layer_cnt)
 				mtk_rollback_layer_to_GPU(disp_info, i, j);
 		}
 	}
@@ -399,24 +412,30 @@ static uint16_t get_mapping_table(struct drm_device *dev, int disp_idx,
 	switch (tb_type) {
 	case DISP_HW_OVL_TB:
 		map = ovl_mapping_table[addon_data->hrt_type];
-		if (mtk_drm_helper_get_opt(priv->helper_opt,
+		if (priv->secure_static_path_switch == true ||
+			priv->data->mmsys_id == MMSYS_MT6739 ||
+			(mtk_drm_helper_get_opt(priv->helper_opt,
 			MTK_DRM_OPT_VDS_PATH_SWITCH) &&
-			priv->need_vds_path_switch)
+			priv->need_vds_path_switch))
 			map = ovl_mapping_tb_vds_switch[addon_data->hrt_type];
 		break;
 	case DISP_HW_LARB_TB:
 		map = larb_mapping_table[addon_data->hrt_type];
-		if (mtk_drm_helper_get_opt(priv->helper_opt,
+		if (priv->secure_static_path_switch == true ||
+			priv->data->mmsys_id == MMSYS_MT6739 ||
+			(mtk_drm_helper_get_opt(priv->helper_opt,
 			MTK_DRM_OPT_VDS_PATH_SWITCH) &&
-			priv->need_vds_path_switch)
+			priv->need_vds_path_switch))
 			map = larb_mapping_tb_vds_switch[addon_data->hrt_type];
 		break;
 	case DISP_HW_LAYER_TB:
 		if (param <= MAX_PHY_OVL_CNT && param >= 0) {
 			tmp_map = layer_mapping_table[addon_data->hrt_type];
-			if (mtk_drm_helper_get_opt(priv->helper_opt,
+			if (priv->secure_static_path_switch == true ||
+				priv->data->mmsys_id == MMSYS_MT6739 ||
+				(mtk_drm_helper_get_opt(priv->helper_opt,
 				MTK_DRM_OPT_VDS_PATH_SWITCH) &&
-				priv->need_vds_path_switch)
+				priv->need_vds_path_switch))
 				tmp_map = layer_mapping_table_vds_switch[
 					addon_data->hrt_type];
 
@@ -455,6 +474,9 @@ void mtk_layering_rule_init(struct drm_device *dev)
 	mtk_set_layering_opt(LYE_OPT_CLEAR_LAYER,
 			     mtk_drm_helper_get_opt(private->helper_opt,
 						    MTK_DRM_OPT_CLEAR_LAYER));
+
+	l_rule_info.litepq =
+	    of_property_read_bool(private->mmsys_dev->of_node, "litepq");
 }
 
 static bool _rollback_all_to_GPU_for_idle(struct drm_device *dev)
@@ -507,7 +529,7 @@ unsigned long long _layering_get_frame_bw(struct drm_crtc *crtc,
 
 	bw_base = (unsigned long long)width * height * fps * 125 * 4;
 
-	bw_base /= 100 * 1024 * 1024;
+	bw_base = DO_COMMON_DIV(bw_base, 100 * 1024 * 1024);
 
 	return bw_base;
 }
@@ -533,8 +555,11 @@ static int layering_get_valid_hrt(struct drm_crtc *crtc, int mode_idx)
 
 	dvfs_bw *= 10000;
 
+	DDP_MUTEX_LOCK(&mtk_crtc->lock, __func__, __LINE__);
 	output_comp = mtk_ddp_comp_request_output(mtk_crtc);
 	if (!mtk_crtc->res_switch) {
+		DDPDBG("%s mode_idx:%d\n", __func__, mode_idx);
+		mtk_crtc->mode_idx = mode_idx;
 		if (output_comp)
 			mtk_ddp_comp_io_cmd(output_comp, NULL,
 				GET_FRAME_HRT_BW_BY_DATARATE, &tmp);
@@ -546,12 +571,13 @@ static int layering_get_valid_hrt(struct drm_crtc *crtc, int mode_idx)
 			mtk_ddp_comp_io_cmd(output_comp, NULL,
 				GET_FRAME_HRT_BW_BY_MODE, &tmp);
 	}
+	DDP_MUTEX_UNLOCK(&mtk_crtc->lock, __func__, __LINE__);
 
 	if (!tmp) {
 		DDPPR_ERR("Get frame hrt bw by datarate is zero\n");
 		return 600;
 	}
-	dvfs_bw /= tmp * 100;
+	dvfs_bw = DO_COMMON_DIV(dvfs_bw, tmp * 100);
 
 	/* error handling when requested BW is less than 2 layers */
 	if (dvfs_bw < 200) {
@@ -640,6 +666,7 @@ static void backup_input_config(struct drm_mtk_layering_info *disp_info)
 {
 	unsigned int size = 0;
 
+	mutex_lock(&hrt_table_lock);
 	/* free before use */
 	if (g_input_config != 0) {
 		kfree(g_input_config);
@@ -647,8 +674,10 @@ static void backup_input_config(struct drm_mtk_layering_info *disp_info)
 	}
 
 	if (disp_info->layer_num[HRT_PRIMARY] <= 0 ||
-	    disp_info->input_config[HRT_PRIMARY] == NULL)
+	    disp_info->input_config[HRT_PRIMARY] == NULL) {
+		mutex_unlock(&hrt_table_lock);
 		return;
+	}
 
 	/* memory allocate */
 	size = sizeof(struct drm_mtk_layer_config) *
@@ -657,11 +686,13 @@ static void backup_input_config(struct drm_mtk_layering_info *disp_info)
 
 	if (g_input_config == 0) {
 		DDPPR_ERR("%s: allocate memory fail\n", __func__);
+		mutex_unlock(&hrt_table_lock);
 		return;
 	}
 
 	/* memory copy */
 	memcpy(g_input_config, disp_info->input_config[HRT_PRIMARY], size);
+	mutex_unlock(&hrt_table_lock);
 }
 
 static void fbdc_pre_calculate(struct drm_mtk_layering_info *disp_info)

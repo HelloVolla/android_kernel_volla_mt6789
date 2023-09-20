@@ -112,6 +112,7 @@ enum battery_property {
 	BAT_PROP_INIT_DONE,
 	BAT_PROP_FG_RESET,
 	BAT_PROP_LOG_LEVEL,
+	BAT_PROP_TEMP_TH_GAP,
 };
 
 struct battery_data {
@@ -917,6 +918,7 @@ struct mtk_battery {
 	bool is_probe_done;
 	bool disable_nafg_int;
 	bool disableGM30;
+	bool disable_bs_psy;
 	bool ntc_disable_nafg;
 	bool cmd_disable_nafg;
 

@@ -13,7 +13,7 @@
 #define LOG_LEVEL_E              KERN_EMERG
 #define LOG_LEVEL_D              KERN_EMERG /*KERN_DEBUG*/
 #define MODULE_NAME              "CHSC"
-#define CHSC_DRIVER_VERSION      "v3.6"
+#define CHSC_DRIVER_VERSION      "v3.6.2"
 
 #define MAX_CORE_WRITE_LEN       128
 #define MAX_VKEY_NUMBER          5

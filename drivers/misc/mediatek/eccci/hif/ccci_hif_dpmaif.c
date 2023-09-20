@@ -136,6 +136,21 @@ TRACE_EVENT(ccci_skb_rx,
 );
 #endif
 #endif
+
+static void dpmaif_init_fail_dump_register(struct hif_dpmaif_ctrl *hif_ctrl, int buf_type)
+{
+	/* dpmaif init fail dump register */
+	CCCI_BUF_LOG_TAG(hif_ctrl->md_id, buf_type, TAG,
+		"dump AP DPMAIF init fail register 0x1022D100~0x1022D1FC\n");
+	ccci_util_mem_dump(hif_ctrl->md_id, buf_type,
+		hif_ctrl->dpmaif_pd_dl_base, 0xFC);
+
+	CCCI_BUF_LOG_TAG(hif_ctrl->md_id, buf_type, TAG,
+		"dump AP DPMAIF init fail register 0x10014410~0x1001442C\n");
+	ccci_util_mem_dump(hif_ctrl->md_id, buf_type,
+		hif_ctrl->dpmaif_ao_dl_base + 0x10, 0x1C);
+}
+
 static void dpmaif_dump_register(struct hif_dpmaif_ctrl *hif_ctrl, int buf_type)
 {
 	if (hif_ctrl->dpmaif_state == HIFDPMAIF_STATE_PWROFF
@@ -430,6 +445,9 @@ static int dpmaif_dump_status(unsigned char hif_id,
 		dpmaif_dump_rxq_history(hif_ctrl, DPMAIF_RXQ_NUM, 1);
 		dpmaif_dump_rxq_remain(hif_ctrl, DPMAIF_RXQ_NUM, 1);
 	}
+
+	if (flag & DUMP_FLAG_INIT_FAIL)
+		dpmaif_init_fail_dump_register(hif_ctrl, CCCI_DUMP_REGISTER);
 
 	if (flag & DUMP_FLAG_REG)
 		dpmaif_dump_register(hif_ctrl, CCCI_DUMP_REGISTER);
@@ -3068,6 +3086,8 @@ static void dpmaif_hw_reset(void)
 	ccci_write32(infra_ao_mem, 0, reg_value);
 	CCCI_REPEAT_LOG(md_id, TAG, "%s:set prot:0x%x\n", __func__, reg_value);
 
+	udelay(500);
+
 	/* DPMAIF HW reset */
 	CCCI_DEBUG_LOG(md_id, TAG, "%s:rst dpmaif\n", __func__);
 	/* reset dpmaif hw: AO Domain */
@@ -3075,17 +3095,23 @@ static void dpmaif_hw_reset(void)
 	regmap_write(dpmaif_ctrl->plat_val.infra_ao_base,
 			INFRA_RST0_REG_AO, reg_value);
 
+	udelay(500);
+
 	CCCI_BOOTUP_LOG(md_id, TAG, "%s:clear reset\n", __func__);
 	/* reset dpmaif clr */
 	regmap_write(dpmaif_ctrl->plat_val.infra_ao_base,
 			INFRA_RST1_REG_AO, reg_value);
 	CCCI_BOOTUP_LOG(md_id, TAG, "%s:done\n", __func__);
 
+	udelay(500);
+
 	/* reset dpmaif hw: PD Domain */
 	reg_value = DPMAIF_PD_RST_MASK;
 	regmap_write(dpmaif_ctrl->plat_val.infra_ao_base,
 			INFRA_RST0_REG_PD, reg_value);
 	CCCI_BOOTUP_LOG(md_id, TAG, "%s:clear reset\n", __func__);
+
+	udelay(500);
 
 	/* reset dpmaif clr */
 	regmap_write(dpmaif_ctrl->plat_val.infra_ao_base,
@@ -3523,7 +3549,7 @@ int ccci_dpmaif_resume_noirq_v2(struct device *dev)
 			WAKE_SRC_HIF_DPMAIF, 0, 0, 0, 0, &res);
 
 	CCCI_NORMAL_LOG(-1, TAG,
-		"[%s] resume_cnt: %u; flag_1=0x%llx, flag_2=0x%llx, flag_3=0x%llx, flag_4=0x%llx\n",
+		"[%s] resume_cnt: %u; flag_1=0x%lx, flag_2=0x%lx, flag_3=0x%lx, flag_4=0x%lx\n",
 		__func__, g_resume_cnt, res.a0, res.a1, res.a2, res.a3);
 
 	if ((!res.a0) && (res.a1 == WAKE_SRC_HIF_DPMAIF))

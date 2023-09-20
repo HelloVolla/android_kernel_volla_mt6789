@@ -202,7 +202,7 @@ static void kpoc_detect_work(struct work_struct *work)
 		pr_err("gezi %s----000---state = %d,kpoc_cnt = %d\n", __func__,pdpe->pdpe_state,pdpe->kpoc_cnt);
 		pdpe->kpoc_cnt++;
 		schedule_delayed_work(&pdpe->kpoc_detect_work, msecs_to_jiffies(PDPE_KPROC_WORK_RUN_INTERVAL));
-		if(pdpe->kpoc_cnt >= 3){
+		if(pdpe->kpoc_cnt >= 8){ //drv add by lipengpeng 20230315 C to C connection charging and data disconnection
 			pr_err("gezi KERNEL POWER OFF %s state = %d,kpoc_cnt = %d\n", __func__,pdpe->pdpe_state,pdpe->kpoc_cnt);
 			kernel_power_off();
 		}

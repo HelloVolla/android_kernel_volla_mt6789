@@ -459,6 +459,11 @@ void *isp71_get_hwid_virt(void)
 }
 EXPORT_SYMBOL(isp71_get_hwid_virt);
 
+phys_addr_t isp71_get_gce_mem_size(void)
+{
+	return mb[IMG_MEM_G_ID].size;
+}
+EXPORT_SYMBOL(isp71_get_gce_mem_size);
 
 int isp71_allocate_working_buffer(struct mtk_hcp *hcp_dev, unsigned int mode)
 {
@@ -536,7 +541,7 @@ int isp71_allocate_working_buffer(struct mtk_hcp *hcp_dev, unsigned int mode)
 				O_RDWR | O_CLOEXEC);
 				dma_buf_begin_cpu_access(mblock[id].d_buf, DMA_BIDIRECTIONAL);
 				kref_init(&mblock[id].kref);
-				pr_info("%s:[HCP][%s] phys:0x%llx, virt:0x%p, dma:0x%llx, size:0x%llx, is_dma_buf:%d, fd:%d, d_buf:0x%p\n",
+				pr_debug("%s:[HCP][%s] phys:0x%llx, virt:0x%p, dma:0x%llx, size:0x%llx, is_dma_buf:%d, fd:%d, d_buf:0x%p\n",
 					__func__, mblock[id].name, isp71_get_reserve_mem_phys(id),
 					isp71_get_reserve_mem_virt(id),
 					isp71_get_reserve_mem_dma(id),
@@ -634,7 +639,7 @@ static void gce_release(struct kref *ref)
 	dma_buf_detach(mblock->d_buf, mblock->attach);
 	dma_buf_end_cpu_access(mblock->d_buf, DMA_BIDIRECTIONAL);
 	dma_buf_put(mblock->d_buf);
-	pr_info("%s:[HCP][%s] phys:0x%llx, virt:0x%p, dma:0x%llx, size:0x%llx, is_dma_buf:%d, fd:%d, d_buf:0x%p\n",
+	pr_debug("%s:[HCP][%s] phys:0x%llx, virt:0x%p, dma:0x%llx, size:0x%llx, is_dma_buf:%d, fd:%d, d_buf:0x%p\n",
 		__func__, mblock->name, isp71_get_reserve_mem_phys(IMG_MEM_G_ID),
 		isp71_get_reserve_mem_virt(IMG_MEM_G_ID),
 		isp71_get_reserve_mem_dma(IMG_MEM_G_ID),
@@ -858,4 +863,5 @@ struct mtk_hcp_data isp71_hcp_data = {
 	.get_gce = isp71_get_gce,
 	.put_gce = isp71_put_gce,
 	.get_hwid_virt = isp71_get_hwid_virt,
+	.get_gce_mem_size = isp71_get_gce_mem_size,
 };

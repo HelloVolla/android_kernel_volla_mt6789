@@ -45,6 +45,7 @@ static struct gt9896s_ts_core *ts_core;
 static struct task_struct *gt9896s_polling_thread;
 static int gt9896s_ts_event_polling(void *arg);
 static int gt9896s_polling_flag;
+struct mutex irq_info_mutex;
 
 struct gt9896s_module gt9896s_modules;
 
@@ -653,6 +654,7 @@ static ssize_t gt9896s_ts_irq_info_store(struct device *dev,
 	case 0:
 		gt9896s_polling_flag = 1;
 		ts_info("disable irq, polling mode, flag = %d", gt9896s_polling_flag);
+		mutex_lock(&irq_info_mutex);
 		if (gt9896s_polling_thread == NULL) {
 			gt9896s_polling_thread =
 				kthread_run(gt9896s_ts_event_polling,
@@ -660,19 +662,23 @@ static ssize_t gt9896s_ts_irq_info_store(struct device *dev,
 			ts_info("gt9896s_polling_thread, kthread_run");
 			if (IS_ERR(gt9896s_polling_thread)) {
 				ret = PTR_ERR(gt9896s_polling_thread);
+				gt9896s_polling_thread = NULL;
 				ts_err(" failed to create kernel thread: %d\n",
 					ret);
 			}
 		}
+		mutex_unlock(&irq_info_mutex);
 		break;
 	//change to touch irq mode
 	case 1:
 		gt9896s_polling_flag = 0;
 		ts_info("enable irq, irq mode, flag = %d", gt9896s_polling_flag);
+		mutex_lock(&irq_info_mutex);
 		if (gt9896s_polling_thread) {
 			kthread_stop(gt9896s_polling_thread);
 			gt9896s_polling_thread = NULL;
 		}
+		mutex_unlock(&irq_info_mutex);
 		break;
 	//use cmd to make touch power off
 	case 2:
@@ -798,7 +804,12 @@ static ssize_t gt9896s_ts_reg_rw_store(struct device *dev,
 	/* get addr */
 	pos = (char *)buf;
 	pos += 2;
-	token = strsep(&pos, ":");
+	if (strstr(pos, ":") != NULL)
+		token = strsep(&pos, ":");
+	else {
+		ts_err("string must contain ':'\n");
+		goto err_out;
+	}
 	if (!token) {
 		ts_err("invalid address info\n");
 		goto err_out;
@@ -812,7 +823,12 @@ static ssize_t gt9896s_ts_reg_rw_store(struct device *dev,
 	}
 
 	/* get length */
-	token = strsep(&pos, ":");
+	if (strstr(pos, ":") != NULL)
+		token = strsep(&pos, ":");
+	else {
+		ts_err("string must contain ':'\n");
+		goto err_out;
+	}
 	if (!token) {
 		ts_err("invalid length info\n");
 		goto err_out;
@@ -2285,6 +2301,7 @@ static int gt9896s_ts_probe(struct platform_device *pdev)
 		ts_info("Failed start cfg_bin_proc");
 		goto err;
 	}
+	mutex_init(&irq_info_mutex);
 	ts_info("core probe OUT");
 	/* wakeup ext module register work */
 	complete_all(&gt9896s_modules.core_comp);

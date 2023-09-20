@@ -359,6 +359,8 @@ static int battery_psy_get_property(struct power_supply *psy,
 			else{
 				ret = power_supply_get_property(bms_psy,POWER_SUPPLY_PROP_CAPACITY, &prop);
 				val->intval = prop.intval;
+				gm->ui_soc = prop.intval;
+				bs_data->bat_capacity = gm->ui_soc;
 				//pr_err("%s:%d\n", __func__,ret);
 			}	
 		//}
@@ -680,7 +682,7 @@ static void mtk_battery_external_power_changed(struct power_supply *psy)
 
 		if (cur_chr_type == POWER_SUPPLY_TYPE_UNKNOWN) {
 			if (gm->chr_type != POWER_SUPPLY_TYPE_UNKNOWN)
-				bm_err("%s chr plug out\n");
+				bm_err("%s chr plug out\n", __func__);
 		} else {
 			if (gm->chr_type == POWER_SUPPLY_TYPE_UNKNOWN)
 				wakeup_fg_algo(gm, FG_INTR_CHARGER_IN);
@@ -1006,8 +1008,10 @@ int gauge_get_property(enum gauge_property gp,
 	int ret = 0;
 
 	psy = power_supply_get_by_name("mtk-gauge");
-	if (psy == NULL)
+	if (psy == NULL) {
+		bm_err("Cannot get power supply of name\n");
 		return -ENODEV;
+	}
 
 	gauge = (struct mtk_gauge *)power_supply_get_drvdata(psy);
 	gm = gauge->gm;
@@ -1050,8 +1054,10 @@ int gauge_set_property(enum gauge_property gp,
 	struct mtk_gauge_sysfs_field_info *attr;
 
 	psy = power_supply_get_by_name("mtk-gauge");
-	if (psy == NULL)
+	if (psy == NULL) {
+		bm_err("Cannot get power supply of name\n");
 		return -ENODEV;
+	}
 
 	gauge = (struct mtk_gauge *)power_supply_get_drvdata(psy);
 	attr = gauge->attr;
@@ -2556,6 +2562,25 @@ static int reset_set(struct mtk_battery *gm,
 	return 0;
 }
 
+static int temp_th_set(struct mtk_battery *gm,
+	struct mtk_battery_sysfs_field_info *attr,
+	int val)
+{
+	int gap = val;
+	int tmp = force_get_tbat(gm, true);
+
+	gm->bat_tmp_c_ht = tmp + gap;
+	gm->bat_tmp_c_lt = tmp - gap;
+
+	bm_debug(
+		"[%s]FG_DAEMON_CMD_SET_FG_BAT_TMP_C_GAP=%d ht:%d lt:%d\n",
+		__func__, gap,
+		gm->bat_tmp_c_ht,
+		gm->bat_tmp_c_lt);
+
+	return 0;
+}
+
 static ssize_t bat_sysfs_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -2614,6 +2639,7 @@ static struct mtk_battery_sysfs_field_info battery_sysfs_field_tbl[] = {
 	BAT_SYSFS_FIELD_RW(init_done, BAT_PROP_INIT_DONE),
 	BAT_SYSFS_FIELD_WO(reset, BAT_PROP_FG_RESET),
 	BAT_SYSFS_FIELD_RW(log_level, BAT_PROP_LOG_LEVEL),
+	BAT_SYSFS_FIELD_WO(temp_th, BAT_PROP_TEMP_TH_GAP),
 };
 
 int battery_get_property(enum battery_property bp,
@@ -2814,8 +2840,10 @@ static int system_pm_notify(struct notifier_block *nb,
 	case PM_HIBERNATION_PREPARE:
 	case PM_RESTORE_PREPARE:
 	case PM_SUSPEND_PREPARE:
-		if (bat_psy->changed)
-			return NOTIFY_BAD;
+		if (!gm->disable_bs_psy) {
+			if (bat_psy->changed)
+				return NOTIFY_BAD;
+		}
 		if (!mutex_trylock(&gm->fg_update_lock))
 			return NOTIFY_BAD;
 		gm->in_sleep = true;
@@ -3506,16 +3534,22 @@ int battery_psy_init(struct platform_device *pdev)
 	if (IS_ERR_OR_NULL(gm->bs_data.chg_psy))
 		bm_err("[BAT_probe] %s: fail to get chg_psy !!\n", __func__);
 
-	battery_service_data_init(gm);
-	gm->bs_data.psy =
-		power_supply_register(
-			&(pdev->dev), &gm->bs_data.psd, &gm->bs_data.psy_cfg);
-	if (IS_ERR(gm->bs_data.psy)) {
-		bm_err("[BAT_probe] power_supply_register Battery Fail !!\n");
-		ret = PTR_ERR(gm->bs_data.psy);
-		return ret;
+	gm->disable_bs_psy = of_property_read_bool(
+		pdev->dev.of_node, "disable-bspsy");
+
+	if (!gm->disable_bs_psy) {
+		battery_service_data_init(gm);
+		gm->bs_data.psy =
+			power_supply_register(
+				&(pdev->dev), &gm->bs_data.psd, &gm->bs_data.psy_cfg);
+		if (IS_ERR(gm->bs_data.psy)) {
+			bm_err("[BAT_probe] power_supply_register Battery Fail !!\n");
+			ret = PTR_ERR(gm->bs_data.psy);
+			return ret;
+		}
+		bm_err("[BAT_probe] power_supply_register Battery Success !!\n");
 	}
-	bm_err("[BAT_probe] power_supply_register Battery Success !!\n");
+
 	return 0;
 }
 
@@ -3654,7 +3688,9 @@ int battery_init(struct platform_device *pdev)
 #endif /* CONFIG_PM */
 
 	fg_drv_thread_hrtimer_init(gm);
-	battery_sysfs_create_group(gm->bs_data.psy);
+
+	if (!gm->disable_bs_psy)
+		battery_sysfs_create_group(gm->bs_data.psy);
 
 	/* for gauge hal hw ocv */
 	gm->bs_data.bat_batt_temp = force_get_tbat(gm, true);

@@ -4337,7 +4337,7 @@ static kal_uint32 capture(MSDK_SENSOR_EXPOSURE_WINDOW_STRUCT *image_window,
 
 	capture_setting(imgsensor.current_fps);
 	
-	write_cmos_sensor_8(0x5001, read_cmos_sensor_8(0X5001)|0X02);
+	//write_cmos_sensor_8(0x5001, read_cmos_sensor_8(0X5001)|0X02);
 	//ov16a1q_table_write_cmos_sensor(addr_data_pair_xtalk,sizeof(addr_data_pair_xtalk)/sizeof(kal_uint16));
 	//ov16a1q_table_write_cmos_sensor(addr_data_pair_dpc,sizeof(addr_data_pair_dpc)/sizeof(kal_uint16));
 	ov16a1q_table_write_cmos_sensor(addr_data_pair_xtalk,0);

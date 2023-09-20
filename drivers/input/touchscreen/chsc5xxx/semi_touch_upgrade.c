@@ -579,7 +579,7 @@ int semi_touch_online_update_check(char* file_path)
 
     fpos = 0;
     vfs_llseek(file, 0, SEEK_SET);
-    vfs_read(file, (char*)&file_sig, sizeof(file_sig), &fpos);
+    kernel_read(file, (char*)&file_sig, sizeof(file_sig), &fpos);
     if(0x43534843 != file_sig) 
     {
         filp_close(file, NULL);
@@ -593,7 +593,7 @@ int semi_touch_online_update_check(char* file_path)
     
     fpos = 0;
     vfs_llseek(file, 0, SEEK_SET);
-    if(file_size == vfs_read(file, (char*)file_buffer, file_size, &fpos))
+    if(file_size == kernel_read(file, (char*)file_buffer, file_size, &fpos))
     {
         semi_touch_check_and_update(file_buffer, file_size);
         semi_touch_mode_init(&st_dev);

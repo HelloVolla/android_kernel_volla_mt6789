@@ -329,7 +329,7 @@
 			"cam0_ldo_vcama_1", "cam0_ldo_vcama_0",
 			"cam0_ldo_vcamio_1", "cam0_ldo_vcamio_0",
 			"cam0_ldo_vcamd_1", "cam0_ldo_vcamd_0",
-			"cam0_ldo_vcamaf_1", "cam0_ldo_vcamaf_0",
+			"cam0_ldo_vcamafvdd_1", "cam0_ldo_vcamafvdd_0",
 			
 			"cam1_ldo_vcama_1", "cam1_ldo_vcama_0",
 			"cam1_ldo_vcamio_1", "cam1_ldo_vcamio_0",
@@ -338,7 +338,7 @@
 			"cam2_ldo_vcama_1", "cam2_ldo_vcama_0",
 			"cam2_ldo_vcamio_1", "cam2_ldo_vcamio_0",
 			"cam2_ldo_vcamd_1", "cam2_ldo_vcamd_0",
-			"cam2_ldo_vcamaf_1", "cam2_ldo_vcamaf_0",
+			"cam2_ldo_vcamafvdd_1", "cam2_ldo_vcamafvdd_0",
 			
 			"cam0_mclk_off",
 			"cam0_mclk_2mA", "cam0_mclk_4mA",

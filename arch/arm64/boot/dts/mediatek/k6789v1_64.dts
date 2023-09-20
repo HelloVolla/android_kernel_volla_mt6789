@@ -185,8 +185,8 @@
 			//};
 		};
 		dpm_caps {
-			//local_dr_power;
-			//local_dr_data;
+			local_dr_power;
+			local_dr_data;
 			//local_ext_power;
 			local_usb_comm;
 			//local_usb_suspend;
@@ -341,8 +341,8 @@
 			//};
 		};
 		dpm_caps {
-			//local_dr_power;
-			//local_dr_data;
+			local_dr_power;
+			local_dr_data;
 			//local_ext_power;
 			local_usb_comm;
 			//local_usb_suspend;
@@ -778,6 +778,7 @@
 	};
 };
 &i2c3 {
+	clock-frequency = <300000>;
 	nfc_st:nfc@08 {
 		compatible = "mediatek,nfc";
 		reg = <0x08>;

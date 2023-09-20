@@ -25,9 +25,15 @@
 #include "ccci_util_log.h"
 #include "ccci_util_lib_main.h"
 
+/* Broadcast event.time_stamp defination */
+struct ccci_timespec {
+	long tv_sec;	/* seconds */
+	long tv_nsec;	/* nanoseconds */
+};
+
 /* Broadcast event defination */
 struct md_status_event {
-	struct timespec64 time_stamp;
+	struct ccci_timespec time_stamp;
 	int md_id;
 	int event_type;
 	char reason[32];
@@ -116,7 +122,7 @@ static void inject_event_helper(struct ccci_util_bc_user_ctlb *user_ctlb,
 		return;
 	}
 
-	user_ctlb->event_buf[user_ctlb->curr_w].time_stamp = *ev_rtime;
+	user_ctlb->event_buf[user_ctlb->curr_w].time_stamp = *(struct ccci_timespec *)ev_rtime;
 	user_ctlb->event_buf[user_ctlb->curr_w].md_id = md_id;
 	user_ctlb->event_buf[user_ctlb->curr_w].event_type = event_type;
 	if (reason != NULL)
@@ -384,7 +390,7 @@ static int cpy_compat_event_to_user(char __user *buf, size_t size,
 #ifdef CONFIG_COMPAT
 	if (test_thread_flag(TIF_32BIT) && !COMPAT_USE_64BIT_TIME) {
 		event_size = sizeof(struct md_status_compat_event);
-		if (size < event_size)
+		if (event_size > size)
 			return -EINVAL;
 		compat_event.time_stamp.tv_sec = event->time_stamp.tv_sec;
 		compat_event.time_stamp.tv_usec = event->time_stamp.tv_nsec/NSEC_PER_USEC;
@@ -398,6 +404,8 @@ static int cpy_compat_event_to_user(char __user *buf, size_t size,
 	} else {
 #endif
 		event_size = sizeof(struct md_status_event);
+		if (event_size > size)
+			return -EINVAL;
 		if (copy_to_user(buf, event, event_size))
 			return -EFAULT;
 		else

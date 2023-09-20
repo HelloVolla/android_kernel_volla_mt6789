@@ -484,7 +484,7 @@ int mtk_cam_sensor_switch_start_hw(struct mtk_cam_ctx *ctx,
 
 	/* stagger mode - use sv to output data to DRAM - online mode */
 	if (mtk_cam_is_stagger(ctx)) {
-		int used_pipes, src_pad_idx;
+		int used_pipes, src_pad_idx = 0;
 		struct mtk_raw_device *raw_dev;
 		bool is_dc;
 		int exp_shift = 0;
@@ -2047,6 +2047,7 @@ static int mtk_camsys_raw_state_handle(struct mtk_raw_device *raw_dev,
 	unsigned int sensor_request_seq_no = atomic_read(&sensor_ctrl->sensor_request_seq_no);
 
 	/* List state-queue status*/
+	mutex_lock(&ctx->cleanup_lock);
 	spin_lock(&sensor_ctrl->camsys_state_lock);
 	list_for_each_entry(state_temp, &sensor_ctrl->camsys_state_list,
 			    state_element) {
@@ -2145,6 +2146,7 @@ static int mtk_camsys_raw_state_handle(struct mtk_raw_device *raw_dev,
 				"[SOF] HW_IMCOMPLETE state cnt(%d,%d),req(%d),ts(%lu)\n",
 				write_cnt, irq_info->write_cnt, req_stream_data->frame_seq_no,
 				irq_info->ts_ns / 1000);
+			mutex_unlock(&ctx->cleanup_lock);
 			return STATE_RESULT_PASS_CQ_HW_DELAY;
 		}
 	}
@@ -2158,6 +2160,7 @@ static int mtk_camsys_raw_state_handle(struct mtk_raw_device *raw_dev,
 				req_stream_data->frame_seq_no, frame_idx_inner,
 				atomic_read(&sensor_ctrl->isp_request_seq_no),
 				irq_info->ts_ns / 1000);
+			mutex_unlock(&ctx->cleanup_lock);
 			return STATE_RESULT_PASS_CQ_HW_DELAY;
 		}
 
@@ -2196,6 +2199,7 @@ static int mtk_camsys_raw_state_handle(struct mtk_raw_device *raw_dev,
 					state_transition(state_temp, E_STATE_SENSOR,
 						 E_STATE_OUTER);
 			}
+			mutex_unlock(&ctx->cleanup_lock);
 			return STATE_RESULT_PASS_CQ_INIT;
 		}
 	} else {
@@ -2219,6 +2223,7 @@ static int mtk_camsys_raw_state_handle(struct mtk_raw_device *raw_dev,
 					state_transition(state_rec[0], E_STATE_READY,
 							E_STATE_SENSOR);
 				*current_state = state_rec[0];
+				mutex_unlock(&ctx->cleanup_lock);
 				return STATE_RESULT_TRIGGER_CQ;
 			}
 		}
@@ -2244,12 +2249,14 @@ static int mtk_camsys_raw_state_handle(struct mtk_raw_device *raw_dev,
 						dev_info(raw_dev->dev,
 							"[SOF] previous req (state:%d) doesn't DB load\n",
 							prev_stream_data->state.estate);
+						mutex_unlock(&ctx->cleanup_lock);
 						return STATE_RESULT_PASS_CQ_SW_DELAY;
 					} else if (prev_stream_data->state.estate != E_STATE_INNER)
 						dev_info(raw_dev->dev, "[SOF] previous req frame no %d (state:%d)\n",
 							prev_stream_data->frame_seq_no,
 							prev_stream_data->state.estate);
 				}
+				mutex_unlock(&ctx->cleanup_lock);
 				return STATE_RESULT_TRIGGER_CQ;
 			}
 			/* last SCQ triggering delay judgment*/
@@ -2258,12 +2265,14 @@ static int mtk_camsys_raw_state_handle(struct mtk_raw_device *raw_dev,
 						E_STATE_OUTER);
 				dev_info(raw_dev->dev, "[SOF] SCQ_DELAY state:%d ts:%lu\n",
 					state_rec[0]->estate, irq_info->ts_ns / 1000);
+				mutex_unlock(&ctx->cleanup_lock);
 				return STATE_RESULT_PASS_CQ_SCQ_DELAY;
 			}
 		} else {
 			dev_dbg(raw_dev->dev, "[SOF] working request not found\n");
 		}
 	}
+	mutex_unlock(&ctx->cleanup_lock);
 	return STATE_RESULT_PASS_CQ_SW_DELAY;
 }
 
@@ -2524,10 +2533,8 @@ static void mtk_cam_mstream_frame_sync(struct mtk_raw_device *raw_dev,
 
 	if (s_data)
 		req = s_data->req;
-	else {
-		dev_info(ctx->cam->dev, "[%s] s_data is null\n", __func__);
-		return;
-	}
+	else
+		dev_info(ctx->cam->dev, "[%s] s_data is null , and mstream continue\n", __func__);
 
 	if (req) {
 		ctx->trigger_next_drain = false;
@@ -4198,6 +4205,20 @@ void mtk_cam_meta1_done_work(struct work_struct *work)
 
 	dev_dbg(ctx->cam->dev, "%s:%s: req(%d) done\n",
 		 __func__, req->req.debug_str, s_data->frame_seq_no);
+	if (mtk_cam_is_ext_isp(ctx)) {
+		buf = mtk_cam_s_data_get_vbuf(s_data, MTK_RAW_META_SV_OUT_0);
+		if (!buf) {
+			dev_info(ctx->cam->dev,
+				 "ctx(%d): extisp:can't get MTK_RAW_META_SV_OUT_0 buf from req(%d)\n",
+				 ctx->stream_id, s_data->frame_seq_no);
+			return;
+		}
+		mtk_cam_s_data_update_timestamp(buf, s_data_ctx);
+		mtk_cam_s_data_reset_vbuf(s_data, MTK_RAW_META_SV_OUT_0);
+		vb2_buffer_done(&buf->vbb.vb2_buf, VB2_BUF_STATE_DONE);
+		dev_info(ctx->cam->dev, "%s:%s: extisp: req(%d) buffer_done for 3a-stat\n",
+			__func__, req->req.debug_str, s_data->frame_seq_no);
+	}
 }
 
 static void mtk_cam_meta1_done(struct mtk_cam_ctx *ctx,
@@ -4584,11 +4605,8 @@ static void mtk_camsys_camsv_frame_start(struct mtk_camsv_device *camsv_dev,
 	mtk_cam_sv_event_frame_sync(camsv_dev, dequeued_frame_seq_no);
 
 	/* check frame done */
-	if (ctx->stream_id >= MTKCAM_SUBDEV_CAMSV_START &&
-		ctx->stream_id < MTKCAM_SUBDEV_CAMSV_END) {
-		mtk_camsys_camsv_check_frame_done(ctx, dequeued_frame_seq_no,
-			ctx->stream_id);
-	}
+	mtk_camsys_camsv_check_frame_done(ctx, dequeued_frame_seq_no,
+		camsv_dev->id + MTKCAM_SUBDEV_CAMSV_START);
 
 	if (ctx->sensor &&
 		(ctx->stream_id >= MTKCAM_SUBDEV_CAMSV_START &&
@@ -4628,9 +4646,17 @@ static void mtk_camsys_camsv_frame_start(struct mtk_camsv_device *camsv_dev,
 }
 
 static void mtk_camsys_mraw_frame_start(struct mtk_mraw_device *mraw_dev,
-	struct mtk_cam_ctx *ctx, unsigned int dequeued_frame_seq_no, u64 ts_ns)
+	struct mtk_cam_ctx *ctx, struct mtk_camsys_irq_info *irq_info)
 {
 	int mraw_dev_index;
+	unsigned int dequeued_frame_seq_no = irq_info->frame_idx_inner;
+	u64 ts_ns = irq_info->ts_ns;
+	int write_cnt = irq_info->write_cnt;
+	int fbc_cnt = irq_info->fbc_cnt;
+
+	/* touch watchdog */
+	if (watchdog_scenario(ctx))
+		mtk_ctx_watchdog_kick(ctx, mraw_dev->id + MTKCAM_SUBDEV_MRAW_START);
 
 	/* touch watchdog */
 	if (watchdog_scenario(ctx))
@@ -4646,6 +4672,10 @@ static void mtk_camsys_mraw_frame_start(struct mtk_mraw_device *mraw_dev,
 
 	mtk_cam_mraw_apply_next_buffer(ctx,
 		mraw_dev->id + MTKCAM_SUBDEV_MRAW_START, ts_ns);
+
+	mraw_check_fbc_no_deque(ctx, mraw_dev, fbc_cnt,
+		write_cnt, dequeued_frame_seq_no);
+
 }
 
 static bool mtk_camsys_is_all_cq_done(struct mtk_cam_ctx *ctx,
@@ -4829,8 +4859,7 @@ static int mtk_camsys_event_handle_mraw(struct mtk_cam_device *cam,
 	}
 	/* mraw's SOF */
 	if (irq_info->irq_type & (1 << CAMSYS_IRQ_FRAME_START))
-		mtk_camsys_mraw_frame_start(mraw_dev, ctx,
-			irq_info->frame_idx_inner, irq_info->ts_ns);
+		mtk_camsys_mraw_frame_start(mraw_dev, ctx, irq_info);
 	/* mraw's CQ done */
 	if (irq_info->irq_type & (1 << CAMSYS_IRQ_SETTING_DONE)) {
 		if (mtk_camsys_is_all_cq_done(ctx, stream_id)) {
@@ -5406,16 +5435,23 @@ void mtk_cam_extisp_sv_stream_delayed(struct mtk_cam_ctx *ctx,
 			(1 << MTKCAM_SV_SPECIAL_SCENARIO_EXT_ISP);
 	int sv_i;
 
-	if (camsv_dev->sof_count == 1 &&
+	/* for preisp pure raw will comes 2 SOFs in 1ms , to avoid missing stream on meta */
+	if (camsv_dev->sof_count > 0 &&
+		camsv_dev->sof_count < 3 &&
 		seninf_padidx == PAD_SRC_RAW0) {
 		for (sv_i = MTKCAM_SUBDEV_CAMSV_END - 1;
 		sv_i >= MTKCAM_SUBDEV_CAMSV_START; sv_i--) {
 			int seninf_padidx_i = ctx->cam->sv.pipelines
 				[sv_i - MTKCAM_SUBDEV_CAMSV_START]
 				.seninf_padidx;
+			struct device *dev_sv = ctx->cam->sv.devs
+				[sv_i - MTKCAM_SUBDEV_CAMSV_START];
+			struct mtk_camsv_device *sv_dev =
+				dev_get_drvdata(dev_sv);
 
 			if (ctx->pipe->enabled_raw & (1 << sv_i) &&
-				(seninf_padidx_i == PAD_SRC_GENERAL0))
+				(seninf_padidx_i == PAD_SRC_GENERAL0) &&
+				mtk_cam_sv_is_vf_on(sv_dev) == 0)
 				mtk_cam_sv_dev_stream_on(ctx,
 					sv_i - MTKCAM_SUBDEV_CAMSV_START,
 					1, hw_scen);
@@ -5637,7 +5673,13 @@ void mtk_cam_extisp_sv_frame_start(struct mtk_cam_ctx *ctx,
 		} else if (stream_data->frame_seq_no == 1) {
 			struct mtk_cam_working_buf_entry *buf_entry;
 			dma_addr_t base_addr;
-
+			if (list_empty(&ctx->composed_buffer_list.list) ||
+				state_out->estate >= E_STATE_EXTISP_CQ) {
+				dev_info_ratelimited(raw_dev->dev,
+					"no buffer update, state:0x%x\n",
+					state_out->estate);
+				return;
+			}
 			spin_lock(&ctx->composed_buffer_list.lock);
 			buf_entry = list_first_entry(&ctx->composed_buffer_list.list,
 						     struct mtk_cam_working_buf_entry,
@@ -5972,6 +6014,14 @@ void mtk_cam_extisp_handle_sv_tstamp(struct mtk_cam_ctx *ctx,
 	// proc raw timestamp
 	stream_data->sv_frame_params.sensor_img_tstamp[1] =
 					irq_info->ts_ns;
+	/* req_s_data->ts assigned in sv frame start, hw incompl. case will miss it, check here */
+	if (stream_data->timestamp == 0 &&
+		stream_data->sv_frame_params.sensor_meta_tstamp[0] > stream_data->timestamp) {
+		dev_info(ctx->cam->dev, "[%s] fix ts:ctx:%d req:%d(ns) s_data:%lld < meta:%lld\n",
+		__func__, ctx->stream_id, stream_data->timestamp,
+		stream_data->sv_frame_params.sensor_meta_tstamp[0]);
+		stream_data->timestamp = stream_data->sv_frame_params.sensor_meta_tstamp[0];
+	}
 	dev_dbg(ctx->cam->dev, "[%s] req:%d(ns)0/1:%lld/%lld,0/1/2:%lld/%lld/%lld\n",
 		__func__, ctx->stream_id,
 		stream_data->frame_seq_no,

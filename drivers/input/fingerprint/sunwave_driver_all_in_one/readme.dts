@@ -1,0 +1,145 @@
+
+
+//////////////////////////////////////////////////////////////
+//samples 1
+//reg = <0>;--->cs0
+//reg = <1>;--->cs1
+
+
+&spi0 {
+    fingerprint@0 {
+        compatible = "mediatek,mt6755-finger";
+        reg = <0>;
+        spi-max-frequency = <8000000>;
+        interrupt-parent = <&pio>;
+		interrupts = <4 1 4 0>;
+		debounce = <4 0>;
+		pinctrl-names ="finger_default",
+				"finger_rst_high",
+				"finger_rst_low",
+				"eint_as_int";
+
+		pinctrl-0 = <&fingerprint_default>;
+		pinctrl-1 = <&fingerprint_rst_high>;
+		pinctrl-2 = <&fingerprint_rst_low>;
+		pinctrl-3 = <&fingerprint_eint>;
+		
+        status = "okay";
+    };
+};
+
+&pio {
+        fingerprint_default: fingerprint_default {
+        };
+
+        fingerprint_rst_high: rst_out_one {
+                pins_cmd_dat {
+                        pins = <PINMUX_GPIO5__FUNC_GPIO5>;
+                        slew-rate = <1>;
+                        bias-disable;
+                        output-high;
+                };
+        };
+
+        fingerprint_rst_low: rst_out_zero {
+                pins_cmd_dat {
+                        pins = <PINMUX_GPIO5__FUNC_GPIO5>;
+                        slew-rate = <1>;
+                        bias-disable;
+                        output-low;
+                };
+        };
+
+        fingerprint_eint: gpio4_eint {
+                pins_cmd_dat {
+                        pins = <PINMUX_GPIO4__FUNC_GPIO4>;
+                        slew-rate = <0>;
+                        bias-pull-up = <00>;
+                        output-high;
+                        input-schmitt-enable = <0>;
+                };
+        };
+};
+
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//samples 2
+
+
+	fingerprint: fingerprint {
+		compatible = "mediatek,mt6755-finger";//
+		interrupt-parent = <&eintc>;
+		interrupts = <18 1 18 0>;
+		debounce = <18 0>;
+		
+		pinctrl-names ="finger_default",
+				"finger_rst_high",
+				"finger_rst_low",
+				"finger_power_high",
+				"finger_power_low",
+				"eint_as_int",;		
+
+		pinctrl-0 = <&fingerprint_default>;
+		pinctrl-3 = <&fingerprint_rst_high>;
+		pinctrl-4 = <&fingerprint_rst_low>;
+		pinctrl-3 = <&fingerprint_power_high>;
+		pinctrl-4 = <&fingerprint_power_low>;
+		pinctrl-1 = <&fingerprint_eint>;
+		status = "okay";
+	};
+
+
+&pio {
+	fingerprint_default: fingerprint_default {
+	};
+
+	fingerprint_rst_high: rst_out_one {
+		pins_cmd_dat {
+			pins = <PINMUX_GPIO83__FUNC_GPIO83>;
+			slew-rate = <1>;
+			bias-disable;
+			output-high;
+		};
+	};
+	
+	fingerprint_rst_low: rst_out_zero {
+		pins_cmd_dat {
+			pins = <PINMUX_GPIO83__FUNC_GPIO83>;
+			slew-rate = <1>;
+			bias-disable;
+			output-low;
+		};
+	};
+
+	fingerprint_power_high: gpio19_pwr_high {
+		pins_cmd_dat {
+			pins = <PINMUX_GPIO19__FUNC_GPIO19>;
+			slew-rate = <1>;
+			bias-disable;
+			output-high;
+		};
+	};
+	
+	fingerprint_power_low: gpio19_pwr_low {
+		pins_cmd_dat {
+			pins = <PINMUX_GPIO19__FUNC_GPIO19>;
+			slew-rate = <1>;
+			bias-disable;
+			output-low;
+		};
+	};
+	
+	fingerprint_eint: gpio18_eint {
+		pins_cmd_dat {
+			pins = <PINMUX_GPIO18__FUNC_EINT2>;
+			slew-rate = <0>;
+			bias-pull-up = <00>;
+			output-high;
+			input-schmitt-enable = <0>;
+		};
+	};
+};

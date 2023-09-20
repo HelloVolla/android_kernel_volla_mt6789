@@ -90,7 +90,7 @@
 
 #include "inc/cam_qos.h"
 #include "inc/camera_isp.h"
-#include "inc/cam_common.h"
+#include "cam_common.h"
 
 #ifdef ENABLE_TIMESYNC_HANDLE
 #include <archcounter_timesync.h>
@@ -537,15 +537,9 @@ struct ISP_IRQ_ERR_WAN_CNT_STRUCT {
 };
 
 static int FirstUnusedIrqUserKey = 1;
-#define USERKEY_USERNAME_STR_LEN 128
 
-struct UserKeyInfo {
-	/* name for the user that register a userKey */
-	char userName[USERKEY_USERNAME_STR_LEN];
-	int userKey; /* the user key for that user */
-};
 /* array for recording the user name for a specific user key */
-static struct UserKeyInfo IrqUserKey_UserInfo[IRQ_USER_NUM_MAX];
+static struct ISP_REGISTER_USERKEY_STRUCT IrqUserKey_UserInfo[IRQ_USER_NUM_MAX];
 
 struct ISP_IRQ_INFO_STRUCT {
 	/* Add an extra index for status type -> signal or dma */
@@ -2727,7 +2721,7 @@ static void ISP_EnableClock(enum ISP_DEV_NODE_ENUM module, bool En)
 			}
 		}
 
-		 G_u4EnableClockCount[module]++;
+		G_u4EnableClockCount[module]++;
 		spin_unlock(&(IspInfo.SpinLockClock));
 		LOG_INF("camsyscg org:0x%x,%x,%x,%x new:0x%x,%x,%x,%x cnt:%d\n",
 			cg_con1,
@@ -2740,6 +2734,11 @@ static void ISP_EnableClock(enum ISP_DEV_NODE_ENUM module, bool En)
 		G_u4EnableClockCount[module]++;
 		spin_unlock(&(IspInfo.SpinLockClock));
 		Prepare_Enable_ccf_clock(module); /* !!cannot be used in spinlock!! */
+		if (G_u4EnableClockCount[module] == 1) {
+			enable_irq(isp_devs[module].irq);
+			LOG_INF(
+				"enable_irq cam %d\n", module);
+		}
 #endif
 	} else { /* Disable clock. */
 #if defined(EP_NO_CLKMGR)
@@ -2775,6 +2774,11 @@ static void ISP_EnableClock(enum ISP_DEV_NODE_ENUM module, bool En)
 		G_u4EnableClockCount[module]--;
 		spin_unlock(&(IspInfo.SpinLockClock));
 		/* !!cannot be used in spinlock!! */
+		if (G_u4EnableClockCount[module] == 0) {
+			disable_irq(isp_devs[module].irq);
+			LOG_INF(
+				"disable_irq cam %d\n", module);
+		}
 		Disable_Unprepare_ccf_clock(module);
 #endif
 	}
@@ -3458,7 +3462,7 @@ static int ISP_REGISTER_IRQ_USERKEY(char *userName)
 			       sizeof(IrqUserKey_UserInfo[i].userName));
 
 			strncpy((void *)IrqUserKey_UserInfo[i].userName,
-				userName, USERKEY_USERNAME_STR_LEN - 1);
+				userName, USERKEY_STR_LEN - 1);
 
 			IrqUserKey_UserInfo[i].userKey = FirstUnusedIrqUserKey;
 			key = FirstUnusedIrqUserKey;
@@ -6125,7 +6129,7 @@ static int ISP_open(struct inode *pInode, struct file *pFile)
 		FirstUnusedIrqUserKey = 1;
 
 		strncpy((void *)IrqUserKey_UserInfo[i].userName,
-			"DefaultUserNametoAllocMem", USERKEY_USERNAME_STR_LEN);
+			"DefaultUserNametoAllocMem", USERKEY_STR_LEN);
 
 		IrqUserKey_UserInfo[i].userKey = -1;
 	}
@@ -6324,7 +6328,7 @@ static int ISP_release(struct inode *pInode, struct file *pFile)
 		FirstUnusedIrqUserKey = 1;
 
 		strncpy((void *)IrqUserKey_UserInfo[i].userName,
-			"DefaultUserNametoAllocMem", USERKEY_USERNAME_STR_LEN);
+			"DefaultUserNametoAllocMem", USERKEY_STR_LEN);
 
 		IrqUserKey_UserInfo[i].userKey = -1;
 	}
@@ -6715,6 +6719,9 @@ static int ISP_probe(struct platform_device *pDev)
 
 					return Ret;
 				}
+
+				/* Reset irq ref cnt after request_irq by disable_irq. */
+				disable_irq(isp_devs[dev_idx].irq);
 
 				LOG_INF(
 				"G_u4DevNodeCt=%d, devnode(%s), irq=%d, ISR: %s\n",

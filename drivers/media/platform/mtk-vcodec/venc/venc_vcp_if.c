@@ -24,7 +24,7 @@
 // TODO: need remove ISR ipis
 #include "mtk_vcodec_intr.h"
 
-#ifdef CONFIG_MTK_ENG_BUILD
+#if IS_ENABLED(CONFIG_MTK_ENG_BUILD)
 #define IPI_TIMEOUT_MS          (10000U)
 #else
 #define IPI_TIMEOUT_MS          (5000U + ((mtk_vcodec_dbg | mtk_v4l2_dbg_level) ? 5000U : 0U))
@@ -90,7 +90,10 @@ static void handle_query_cap_ack_msg(struct venc_vcu_ipi_query_cap_ack *msg)
 static struct device *get_dev_by_mem_type(struct venc_inst *inst, struct vcodec_mem_obj *mem)
 {
 	if (mem->type == MEM_TYPE_FOR_SW || mem->type == MEM_TYPE_FOR_SEC_SW)
-		return vcp_get_io_device(VCP_IOMMU_256MB1);
+		if (inst->ctx->id & 1)
+			return vcp_get_io_device(VCP_IOMMU_WORK_256MB2);
+		else
+			return vcp_get_io_device(VCP_IOMMU_256MB1);
 	else if (mem->type == MEM_TYPE_FOR_HW || mem->type == MEM_TYPE_FOR_SEC_HW)
 		return &inst->vcu_inst.ctx->dev->plat_dev->dev;
 	else
@@ -159,7 +162,8 @@ static int venc_vcp_ipi_send(struct venc_inst *inst, void *msg, int len, bool is
 		mutex_unlock(&inst->ctx->dev->ipi_mutex);
 		inst->vcu_inst.failure = VENC_IPI_MSG_STATUS_FAIL;
 		inst->vcu_inst.abort = 1;
-		trigger_vcp_halt(VCP_A_ID);
+		if (inst->vcu_inst.daemon_pid == get_vcp_generation())
+			trigger_vcp_halt(VCP_A_ID);
 		return -EIO;
 	}
 	if (!is_ack) {
@@ -174,7 +178,8 @@ static int venc_vcp_ipi_send(struct venc_inst *inst, void *msg, int len, bool is
 			mutex_unlock(&inst->ctx->dev->ipi_mutex);
 			inst->vcu_inst.failure = VENC_IPI_MSG_STATUS_FAIL;
 			inst->vcu_inst.abort = 1;
-			trigger_vcp_halt(VCP_A_ID);
+			if (inst->vcu_inst.daemon_pid == get_vcp_generation())
+				trigger_vcp_halt(VCP_A_ID);
 			return -EIO;
 		}
 	}
@@ -419,7 +424,7 @@ int vcp_enc_ipi_handler(void *arg)
 		list_for_each_safe(p, q, &dev->ctx_list) {
 			temp_ctx = list_entry(p, struct mtk_vcodec_ctx, list);
 			inst = (struct venc_inst *)temp_ctx->drv_handle;
-			if (vcu == &inst->vcu_inst) {
+			if (inst != NULL && vcu == &inst->vcu_inst && vcu->ctx == temp_ctx) {
 				msg_valid = 1;
 				break;
 			}
@@ -981,8 +986,6 @@ static int venc_vcp_init(struct mtk_vcodec_ctx *ctx, unsigned long *handle)
 		return -ENOMEM;
 	}
 
-	mtk_vcodec_add_ctx_list(ctx);
-
 	inst->ctx = ctx;
 	inst->vcu_inst.ctx = ctx;
 	inst->vcu_inst.dev = ctx->dev->vcu_plat_dev;
@@ -1009,6 +1012,9 @@ static int venc_vcp_init(struct mtk_vcodec_ctx *ctx, unsigned long *handle)
 	out.venc_inst = (unsigned long)&inst->vcu_inst;
 	(*handle) = (unsigned long)inst;
 	inst->vcu_inst.daemon_pid = get_vcp_generation();
+
+	mtk_vcodec_add_ctx_list(ctx);
+
 	ret = venc_vcp_ipi_send(inst, &out, sizeof(out), 0);
 	inst->vsi = (struct venc_vsi *)inst->vcu_inst.vsi;
 

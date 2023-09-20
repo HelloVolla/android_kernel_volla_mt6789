@@ -2656,12 +2656,23 @@ void cmdq_core_dump_handle_buffer(const struct cmdq_pkt *pkt,
 				pkt->avail_buf_size);
 		else
 			va = (u32 *)(buf->va_base + CMDQ_CMD_BUFFER_SIZE);
-		va -= 4;
 
-		CMDQ_LOG(
-			"[%s]va:0x%p pa:%pa last inst (0x%p) 0x%08x:%08x 0x%08x:%08x\n",
-			tag, buf->va_base, &buf->pa_base,
-			va, va[1], va[0], va[3], va[2]);
+		if (CMDQ_CMD_BUFFER_SIZE - pkt->avail_buf_size >= CMDQ_INST_SIZE * 2) {
+			va -= 4;
+
+			CMDQ_LOG(
+				"[%s]va:0x%p pa:%pa last inst (0x%p) 0x%08x:%08x 0x%08x:%08x\n",
+				tag, buf->va_base, &buf->pa_base,
+				va, va[1], va[0], va[3], va[2]);
+		} else {
+			va -= 2;
+
+			CMDQ_LOG(
+				"[%s]va:0x%p pa:%pa last inst (0x%p) 0x%08x:%08x\n",
+				tag, buf->va_base, &buf->pa_base,
+				va, va[1], va[0]);
+		}
+
 	}
 }
 
@@ -4310,6 +4321,8 @@ s32 cmdq_pkt_wait_flush_ex_result(struct cmdqRecStruct *handle)
 	} while (1);
 
 	status = cmdq_pkt_wait_complete(handle->pkt);
+	if (handle->pkt_rb)
+		status = cmdq_pkt_wait_complete(handle->pkt_rb);
 
 	if (handle->profile_exec) {
 		u32 *va = cmdq_pkt_get_perf_ret(handle->pkt);
@@ -4820,9 +4833,9 @@ unsigned long cmdq_get_tracing_mark(void)
 	return tracing_mark_write_addr;
 }
 
-noinline int tracing_mark_write(char *fmt, ...)
+noinline int tracing_mark_write_cmdq(char *fmt, ...)
 {
-#if IS_ENABLED(CONFIG_TRACING)
+#if IS_ENABLED(CONFIG_TRACING) && IS_ENABLED(CONFIG_MTK_MDP_DEBUG)
 	char buf[TRACE_MSG_LEN];
 	va_list args;
 	int len;

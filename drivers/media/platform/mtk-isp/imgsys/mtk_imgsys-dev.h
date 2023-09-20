@@ -240,6 +240,7 @@ struct mtk_imgsys_dvfs {
 	unsigned long freq;
 	unsigned int vss_task_cnt;
 	unsigned int smvr_task_cnt;
+	unsigned int stream_4k60_task_cnt;
 };
 
 struct mtk_imgsys_qos_path {
@@ -722,7 +723,6 @@ struct timeval {
 
 struct swfrm_info_t {
 	uint32_t req_sbuf_goft;
-	void *req_sbuf_kva;
 	int swfrminfo_ridx;
 	int request_fd;
 	int request_no;

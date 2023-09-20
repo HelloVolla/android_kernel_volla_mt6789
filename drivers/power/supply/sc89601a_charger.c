@@ -23,6 +23,7 @@
 #include <linux/bitops.h>
 #include <linux/math64.h>
 
+#include "../../misc/mediatek/extcon/extcon-mtk-usb.h"
 
 #include "sc89601a_reg.h"
 //prize add by lipengpeng 20220621 start 
@@ -958,7 +959,7 @@ static int sc89601a_get_charger_type(struct sc89601a *sc, int *type)
 		sc->psy_desc.type = POWER_SUPPLY_TYPE_USB_DCP;
 		break;
 	case SC89601A_VBUS_TYPE_UNKNOWN:
-		chg_type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
+		chg_type = POWER_SUPPLY_USB_TYPE_DCP;
 		sc->psy_desc.type = POWER_SUPPLY_TYPE_USB;
 		break;
 	case SC89601A_VBUS_TYPE_NON_STD:
@@ -1490,6 +1491,24 @@ static int sc89601a_set_otg(struct charger_device *chg_dev, bool en)
 	return ret;
 }
 
+static int sc89601a_enable_discharge(struct charger_device *chg_dev, bool en)
+{
+    int ret;
+    struct sc89601a *sc = dev_get_drvdata(&chg_dev->dev);
+
+    if(en){
+        ret = sc89601a_disable_charger(sc);
+	}
+	else{
+       ret = sc89601a_enable_charger(sc);
+    }
+
+       pr_err("%s enable_discharge %s\n", en ? "enable" : "disable",
+              !ret ? "successfully" : "failed");
+
+       return ret;
+}
+
 static int sc89601a_set_safety_timer(struct charger_device *chg_dev, bool en)
 {
 	struct sc89601a *sc = dev_get_drvdata(&chg_dev->dev);
@@ -1687,7 +1706,8 @@ static int sc89601a_chg_get_property(struct power_supply *psy,
 	u32 _val;
 	int data;
 	struct sc89601a *sc = power_supply_get_drvdata(psy);
-
+	int boot_mode = 0;
+	static bool is_true = true;
 	switch (psp) {
 	case POWER_SUPPLY_PROP_MANUFACTURER:
 		val->strval = "SouthChip";
@@ -1730,8 +1750,21 @@ static int sc89601a_chg_get_property(struct power_supply *psy,
         val->intval = data;
 		break;
 	case POWER_SUPPLY_PROP_USB_TYPE:
-		pr_err("---->POWER_SUPPLY_PROP_USB_TYPE : %d\n", sc->psy_usb_type);
+		boot_mode = sc89601a_get_boot_mode(sc);
+		pr_err("---->POWER_SUPPLY_PROP_USB_TYPE : %d boot_mode = %d\n", sc->psy_usb_type,boot_mode);
 		val->intval = sc->psy_usb_type;
+		if(boot_mode == 1 || boot_mode == 4){
+			
+			if(is_true && val->intval == 1){
+				if(sc89601a_set_roal(1) == 0){
+					is_true = false;
+				}
+			}
+			else if(!is_true && val->intval == 0){
+				sc89601a_set_roal(0);
+			}
+		}
+
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
 		if (sc->psy_desc.type == POWER_SUPPLY_TYPE_USB)
@@ -1887,7 +1920,7 @@ static struct charger_ops sc89601a_chg_ops = {
 	/* OTG */
 	.set_boost_current_limit = sc89601a_set_boost_ilmt,
 	.enable_otg = sc89601a_set_otg,
-	.enable_discharge = NULL,
+	.enable_discharge = sc89601a_enable_discharge,
 	/* charger type detection */
 	.enable_chg_type_det = NULL,
 	/* misc */

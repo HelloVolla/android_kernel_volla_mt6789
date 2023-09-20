@@ -45,6 +45,14 @@
 		compatible = "simple-bus";
 	};
 
+	clkchk {
+		compatible = "mediatek,mt6879-clkchk";
+	};
+
+	pdchk {
+		compatible = "mediatek,mt6879-pdchk";
+	};
+
 	clocks {
 		clk32k: clk32k {
 			compatible = "fixed-clock";
@@ -394,7 +402,7 @@
 			enable-method = "psci";
 			performance-domains = <&performance 0>;
 			clock-frequency = <2000000000>;
-			capacity-dmips-mhz = <311>;
+			capacity-dmips-mhz = <315>;
 			#cooling-cells = <2>;
 			cpu-idle-states = <&cpuoff_l &clusteroff_l &mcusysoff
 						&system_mem &system_pll &system_bus
@@ -408,7 +416,7 @@
 			enable-method = "psci";
 			performance-domains = <&performance 0>;
 			clock-frequency = <2000000000>;
-			capacity-dmips-mhz = <311>;
+			capacity-dmips-mhz = <315>;
 			#cooling-cells = <2>;
 			cpu-idle-states = <&cpuoff_l &clusteroff_l &mcusysoff
 						&system_mem &system_pll &system_bus
@@ -422,7 +430,7 @@
 			enable-method = "psci";
 			performance-domains = <&performance 0>;
 			clock-frequency = <2000000000>;
-			capacity-dmips-mhz = <311>;
+			capacity-dmips-mhz = <315>;
 			#cooling-cells = <2>;
 			cpu-idle-states = <&cpuoff_l &clusteroff_l &mcusysoff
 						&system_mem &system_pll &system_bus
@@ -436,7 +444,7 @@
 			enable-method = "psci";
 			performance-domains = <&performance 0>;
 			clock-frequency = <2000000000>;
-			capacity-dmips-mhz = <311>;
+			capacity-dmips-mhz = <315>;
 			#cooling-cells = <2>;
 			cpu-idle-states = <&cpuoff_l &clusteroff_l &mcusysoff
 						&system_mem &system_pll &system_bus
@@ -450,7 +458,7 @@
 			enable-method = "psci";
 			performance-domains = <&performance 0>;
 			clock-frequency = <2000000000>;
-			capacity-dmips-mhz = <311>;
+			capacity-dmips-mhz = <315>;
 			#cooling-cells = <2>;
 			cpu-idle-states = <&cpuoff_l &clusteroff_l &mcusysoff
 						&system_mem &system_pll &system_bus
@@ -464,7 +472,7 @@
 			enable-method = "psci";
 			performance-domains = <&performance 0>;
 			clock-frequency = <2000000000>;
-			capacity-dmips-mhz = <311>;
+			capacity-dmips-mhz = <315>;
 			#cooling-cells = <2>;
 			cpu-idle-states = <&cpuoff_l &clusteroff_l &mcusysoff
 						&system_mem &system_pll &system_bus
@@ -477,7 +485,7 @@
 			reg = <0x0600>;
 			enable-method = "psci";
 			performance-domains = <&performance 1>;
-			clock-frequency = <2700000000>;
+			clock-frequency = <2500000000>;
 			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
 			cpu-idle-states = <&cpuoff_b &clusteroff_b &mcusysoff
@@ -491,7 +499,7 @@
 			reg = <0x0700>;
 			enable-method = "psci";
 			performance-domains = <&performance 1>;
-			clock-frequency = <2700000000>;
+			clock-frequency = <2500000000>;
 			capacity-dmips-mhz = <1024>;
 			#cooling-cells = <2>;
 			cpu-idle-states = <&cpuoff_b &clusteroff_b &mcusysoff
@@ -5165,6 +5173,11 @@
 			#clock-cells = <1>;
 		};
 
+		mtk_ssc: mtk_ssc@1c01f000 {
+			compatible = "mediatek,ssc";
+			safe-vlogic-uv = <600000>;
+		};
+
 		cam_main_r1a_clk: syscon@1a000000 {
 			compatible = "mediatek,mt6879-cam_main_r1a", "syscon";
 			reg = <0 0x1a000000 0 0x1000>;
@@ -8790,7 +8803,7 @@
 			dramc_ver = <2>;
 			/* 0: dram ebg, 1:emi_freq, 2: DRAMC_DCM_CTRL 3:chn_emi_low_effi */
 			/* 4: SLC */
-			met_emi_support_list = <0x7>;
+			met_emi_support_list = <0x5>;
 			cen_emi_reg_base = <0x10219000 0x1021D000>;
 			cen_emi_reg_size = <0x1000>;
 			chn_emi_reg_base = <0x10235000 0x10245000 0x10255000 0x10265000>;

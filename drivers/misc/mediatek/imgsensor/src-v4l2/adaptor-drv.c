@@ -1200,11 +1200,13 @@ static DEVICE_ATTR_RW(debug_i2c_ops);
 
 static int imgsensor_probe(struct i2c_client *client)
 {
+
 	struct device *dev = &client->dev;
 	struct device_node *endpoint;
 	struct adaptor_ctx *ctx;
 	int ret;
-
+	int forbid_index;
+	dev_info(dev, "imgsensor_probe success\n");
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
@@ -1259,7 +1261,11 @@ static int imgsensor_probe(struct i2c_client *client)
 	ctx->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ctx->sd.dev = &client->dev;
 	ctx->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
-
+	ctx->forbid_idx = -1;
+	if (!of_property_read_u32(dev->of_node, "forbid-index", &forbid_index)) {
+		ctx->forbid_idx = forbid_index;
+		dev_info(dev, "not support to power on with sensor%d\n", ctx->forbid_idx);
+	}
 
 	/* init subdev name */
 	snprintf(ctx->sd.name, V4L2_SUBDEV_NAME_SIZE, "%s",
@@ -1390,7 +1396,6 @@ static struct i2c_driver imgsensor_i2c_driver = {
 static int __init adaptor_drv_init(void)
 {
 	i2c_add_driver(&imgsensor_i2c_driver);
-
 	return 0;
 }
 

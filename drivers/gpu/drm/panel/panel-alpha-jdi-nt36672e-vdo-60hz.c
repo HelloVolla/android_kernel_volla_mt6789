@@ -14,6 +14,7 @@
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
+#include <linux/power_supply.h>
 
 #include <video/mipi_display.h>
 #include <video/of_videomode.h>
@@ -318,6 +319,24 @@ static int jdi_disable(struct drm_panel *panel)
 
 	return 0;
 }
+static bool is_gesture_wakeup_enabled(void)
+{
+	struct power_supply *sw_psy = NULL;
+	union power_supply_propval val = {0,};
+	int ret = 0;
+    if (!sw_psy) { 
+       sw_psy = power_supply_get_by_name("sar_cali");
+        if (!sw_psy){
+            pr_err("sw_psy psy not found!\n");
+			return false;
+		}
+    }
+	
+	//val.intval = 0;
+    ret = power_supply_get_property(sw_psy, POWER_SUPPLY_PROP_TEMP, &val);
+	
+	return val.intval;
+}
 
 static int jdi_unprepare(struct drm_panel *panel)
 {
@@ -343,22 +362,29 @@ static int jdi_unprepare(struct drm_panel *panel)
 	 * gpiod_set_value(ctx->reset_gpio, 0);
 	 * devm_gpiod_put(ctx->dev, ctx->reset_gpio);
 	 */
-	if (ctx->gate_ic == 0) {
-		ctx->bias_neg =
-			devm_gpiod_get_index(ctx->dev, "bias", 1, GPIOD_OUT_HIGH);
-		gpiod_set_value(ctx->bias_neg, 0);
-		devm_gpiod_put(ctx->dev, ctx->bias_neg);
+	if(!is_gesture_wakeup_enabled()){
+		pr_err("gezi is_gesture_wakeup_enabled false...\n");
+		if (ctx->gate_ic == 0) {
+			ctx->bias_neg =
+				devm_gpiod_get_index(ctx->dev, "bias", 1, GPIOD_OUT_HIGH);
+			gpiod_set_value(ctx->bias_neg, 0);
+			devm_gpiod_put(ctx->dev, ctx->bias_neg);
 
-		usleep_range(2000, 2001);
+			usleep_range(2000, 2001);
 
-		ctx->bias_pos =
-			devm_gpiod_get_index(ctx->dev, "bias", 0, GPIOD_OUT_HIGH);
-		gpiod_set_value(ctx->bias_pos, 0);
-		devm_gpiod_put(ctx->dev, ctx->bias_pos);
-	} else if (ctx->gate_ic == 4831) {
-		_gate_ic_i2c_panel_bias_enable(0);
-		_gate_ic_Power_off();
+			ctx->bias_pos =
+				devm_gpiod_get_index(ctx->dev, "bias", 0, GPIOD_OUT_HIGH);
+			gpiod_set_value(ctx->bias_pos, 0);
+			devm_gpiod_put(ctx->dev, ctx->bias_pos);
+		} else if (ctx->gate_ic == 4831) {
+			_gate_ic_i2c_panel_bias_enable(0);
+			_gate_ic_Power_off();
+		}
 	}
+	else{
+		pr_err("gezi is_gesture_wakeup_enabled true...\n");
+	}
+
 	ctx->error = 0;
 	ctx->prepared = false;
 	pr_err("gezi %s--------------000-------------%d\n", __func__,__LINE__);

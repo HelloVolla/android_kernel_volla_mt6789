@@ -129,6 +129,14 @@
 		compatible = "simple-bus";
 	};
 
+	clkchk {
+		compatible = "mediatek,mt6895-clkchk";
+	};
+
+	pdchk {
+		compatible = "mediatek,mt6895-pdchk";
+	};
+
 	clocks {
 		clk32k: clk32k {
 			compatible = "fixed-clock";
@@ -163,8 +171,8 @@
 		bootargs = "console=tty0 root=/dev/ram \
 			rcupdate.rcu_expedited=1 transparent_hugepage=never \
 			8250.nr_uarts=2 \
-			vmalloc=400M swiotlb=noforce cma=64M \
-			firmware_class.path=/vendor/firmware pelt=8";
+			vmalloc=400M swiotlb=noforce \
+			firmware_class.path=/vendor/firmware";
 		kaslr-seed = <0 0>;
 	};
 
@@ -450,6 +458,12 @@
 				base = <0x1c01d000>;
 				num_ports = <14>;
 				bus_freq_mhz = <156>;
+			};
+			monitor7 {
+				monitor_name = "debug_ctrl_ao_MM_AO";
+				base = <0x1e825000>;
+				num_ports = <28>;
+				bus_freq_mhz = <688>;
 			};
 		};
 	};
@@ -3666,6 +3680,16 @@
 			#clock-cells = <1>;
 		};
 
+		nemi_bus: syscon@10270000 {
+			compatible = "mediatek,mt6985-nemi_bus", "syscon";
+			reg = <0 0x10270000 0 0x1000>;
+		};
+
+		semi_bus: syscon@1030e000 {
+			compatible = "mediatek,mt6985-semi_bus", "syscon";
+			reg = <0 0x1030e000 0 0x1000>;
+		};
+
 		scpsys: power-controller@1c001000 {
 			compatible = "mediatek,mt6895-scpsys", "syscon";
 			reg = <0 0x1c001000 0 0x1000>;
@@ -3730,6 +3754,8 @@
 			infracfg = <&infracfg_ao_clk>;
 			vlpcfg = <&vlpcfg_bus_clk>;
 			mfgrpc = <&gpu_eb_rpc_bus_clk>;
+			nemi_bus = <&nemi_bus>;
+			semi_bus = <&semi_bus>;
 			isp_main-supply = <&mt6319_6_vbuck3>;
 			cam_main-supply = <&mt6319_6_vbuck3>;
 			hw-voter-regmap = <&hwv>;
@@ -3744,6 +3770,11 @@
 			compatible = "mediatek,mt6895-vlp_cksys", "syscon";
 			reg = <0 0x1c013000 0 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		mtk_ssc: mtk_ssc@1c01f000 {
+			compatible = "mediatek,ssc";
+			safe-vlogic-uv = <600000>;
 		};
 
 		cam_main_r1a_clk: syscon@1a000000 {
@@ -5838,7 +5869,7 @@
 				<1>, /*MTK_DRM_OPT_ESD_CHECK_SWITCH*/
 				<1>, /*MTK_DRM_OPT_PRESENT_FENCE*/
 				<0>, /*MTK_DRM_OPT_RDMA_UNDERFLOW_AEE*/
-				<1>, /*MTK_DRM_OPT_DSI_UNDERRUN_AEE*/
+				<0>, /*MTK_DRM_OPT_DSI_UNDERRUN_AEE*/
 				<1>, /*MTK_DRM_OPT_HRT*/
 				<1>, /*MTK_DRM_OPT_HRT_MODE*/
 				<0>, /*MTK_DRM_OPT_DELAYED_TRIGGER*/
@@ -6167,6 +6198,11 @@
 			reg = <0 0x14018000 0 0x1000>;
 			interrupts = <GIC_SPI 324 IRQ_TYPE_LEVEL_HIGH 0>;
 			clocks = <&mmsys0_config_clk CLK_MM0_DISP_WDMA0>;
+			fifo-size-1plane = <905>;
+			fifo-size-2plane = <599>;
+			fifo-size-uv-2plane = <299>;
+			fifo-size-3plane = <596>;
+			fifo-size-uv-3plane = <148>;
 			mediatek,larb = <&smi_larb0>;
 			mediatek,smi-id = <0>;
 			dma-ranges = <0x0 0x0 0x0 0x0 0x4 0x0>;
@@ -6175,7 +6211,7 @@
 
 		disp_rdma1: disp_rdma@1401c000 {
 			compatible = "mediatek,disp_rdma1",
-						"mediatek,mt6983-disp-rdma";
+						"mediatek,mt6895-disp-rdma";
 			reg = <0 0x1401c000 0 0x1000>;
 			interrupts = <GIC_SPI 328 IRQ_TYPE_LEVEL_HIGH 0>;
 			clocks = <&mmsys0_config_clk CLK_MM0_DISP_RDMA1>;
@@ -6198,6 +6234,11 @@
 			reg = <0 0x1401f000 0 0x1000>;
 			interrupts = <GIC_SPI 331 IRQ_TYPE_LEVEL_HIGH 0>;
 			clocks = <&mmsys0_config_clk CLK_MM0_DISP_WDMA1>;
+			fifo-size-1plane = <464>;
+			fifo-size-2plane = <305>;
+			fifo-size-uv-2plane = <152>;
+			fifo-size-3plane = <303>;
+			fifo-size-uv-3plane = <74>;
 			mediatek,larb = <&smi_larb1>;
 			mediatek,smi-id = <1>;
 			dma-ranges = <0x0 0x0 0x0 0x0 0x4 0x0>;
@@ -6449,6 +6490,11 @@
 			reg = <0 0x14418000 0 0x1000>;
 			interrupts = <GIC_SPI 368 IRQ_TYPE_LEVEL_HIGH 0>;
 			clocks = <&mmsys1_config_clk CLK_MM1_DISP_WDMA0>;
+			fifo-size-1plane = <905>;
+			fifo-size-2plane = <599>;
+			fifo-size-uv-2plane = <299>;
+			fifo-size-3plane = <596>;
+			fifo-size-uv-3plane = <148>;
 			mediatek,larb = <&smi_larb20>;
 			mediatek,smi-id = <20>;
 			dma-ranges = <0x0 0x0 0x0 0x0 0x4 0x0>;
@@ -6526,6 +6572,11 @@
 			reg = <0 0x1441f000 0 0x1000>;
 			interrupts = <GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH 0>;
 			clocks = <&mmsys1_config_clk CLK_MM1_DISP_WDMA1>;
+			fifo-size-1plane = <464>;
+			fifo-size-2plane = <305>;
+			fifo-size-uv-2plane = <152>;
+			fifo-size-3plane = <303>;
+			fifo-size-uv-3plane = <74>;
 			mediatek,larb = <&smi_larb21>;
 			mediatek,smi-id = <21>;
 			dma-ranges = <0x0 0x0 0x0 0x0 0x4 0x0>;
@@ -9210,6 +9261,7 @@
 			clock-names = "hdr0";
 			comp-ids = <MML_HDR0>;
 			comp-names = "hdr0";
+			event_vcp_readback_done = /bits/ 16 <CMDQ_SYNC_TOKEN_MML_VCP_READBACK>;
 		};
 
 		mml_hdr1: mml_hdr1@1f806000 {
@@ -9219,6 +9271,7 @@
 			clock-names = "hdr1";
 			comp-ids = <MML_HDR1>;
 			comp-names = "hdr1";
+			event_vcp_readback_done = /bits/ 16 <CMDQ_SYNC_TOKEN_MML_VCP_READBACK>;
 		};
 
 		mml_aal0: mml_aal0@1f807000 {
@@ -9231,6 +9284,7 @@
 			gpr_poll = /bits/ 8 <GCE_GPR_R08>;
 			sram_curve_base = /bits/ 32 <4608>;
 			sram_his_base = /bits/ 32 <1536>;
+			event_vcp_readback_done = /bits/ 16 <CMDQ_SYNC_TOKEN_MML_VCP_READBACK>;
 		};
 
 		mml_aal1: mml_aal1@1f808000 {
@@ -9243,6 +9297,7 @@
 			gpr_poll = /bits/ 8 <GCE_GPR_R09>;
 			sram_curve_base = /bits/ 32 <4608>;
 			sram_his_base = /bits/ 32 <1536>;
+			event_vcp_readback_done = /bits/ 16 <CMDQ_SYNC_TOKEN_MML_VCP_READBACK>;
 		};
 
 		mml_rsz0: mml_rsz0@1f809000 {
@@ -9575,7 +9630,7 @@
 
 		usb_boost: usb_boost_manager {
 			compatible = "mediatek,usb_boost", "mediatek,mt6895-usb_boost";
-			interconnects = <&dvfsrc MT6873_MASTER_DBGIF &dvfsrc MT6873_SLAVE_DDR_EMI>;
+			interconnects = <&dvfsrc MT6873_MASTER_USB &dvfsrc MT6873_SLAVE_DDR_EMI>;
 			interconnect-names = "icc-bw";
 			required-opps = <&dvfsrc_freq_opp0>;
 			usb-audio;
@@ -10740,7 +10795,8 @@
 			<0 0x10042000 0 0x1000>,  /* NTH_EMI_AO_DEBUG_CTRL */
 			<0 0x11f10000 0 0x1000>,  /* EFUSE */
 			<0 0x13fb9c00 0 0x100>,   /* MFG_CPE_CONTROL */
-			<0 0x13fb6000 0 0x1000>;  /* MFG_CPE_SENSOR */
+			<0 0x13fb6000 0 0x1000>,  /* MFG_CPE_SENSOR */
+			<0 0x1000d000 0 0x1000>;  /* DRM_DEBUG_BASE */
 		reg-names =
 			"mfg_pll",
 			"mfgsc_pll",
@@ -10758,7 +10814,8 @@
 			"nth_emi_ao_debug_ctrl",
 			"efuse",
 			"mfg_cpe_control",
-			"mfg_cpe_sensor";
+			"mfg_cpe_sensor",
+			"drm_debug_base";
 		power-domains =
 			<&scpsys MT6895_POWER_DOMAIN_MFG1>,
 			<&scpsys MT6895_POWER_DOMAIN_MFG2>,

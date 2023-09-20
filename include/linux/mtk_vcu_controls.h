@@ -196,13 +196,18 @@ enum gce_event_id {
 #define VCU_GCE_WAIT_CALLBACK _IOW('v', 9, struct gce_obj)
 #define VCU_GET_OBJECT		_IOWR('v', 10, struct share_obj)
 #define VCU_GET_LOG_OBJECT	_IOW('v', 11, struct log_test_nofuse)
-#define VCU_SET_LOG_OBJECT	_IOW('v', 12, struct log_test)
+#define VCU_SET_LOG_OBJECT	_IOW('v', 12, struct log_test_nofuse)
 #define VCU_SET_MMAP_TYPE	_IOW('v', 13, struct map_obj)
 #define VCU_GET_DISP_MAPPED_IOVA	_IOWR('v', 14, struct disp_iova_obj)
 #define VCU_CLEAR_DISP_MAPPED_IOVA	_IOW('v', 15, struct disp_iova_obj)
 #define VCU_GET_DISP_WDMA_Y_ADDR	_IOWR('v', 16, struct disp_iova_obj)
 #define VCU_UBE_MVA_ALLOCATION	_IOWR('v', 17, struct mem_obj)
 #define VCU_UBE_MVA_FREE	_IOWR('v', 18, struct mem_obj)
+#define VCU_SECURE_HANDLE_ALLOCATION	_IOWR('v', 19, struct mem_obj)
+#define VCU_SECURE_HANDLE_FREE		_IOWR('v', 20, struct mem_obj)
+#define VCU_SECURE_BUFFER_ALLOCATION	_IOWR('v', 21, struct mem_obj)
+#define VCU_SECURE_BUFFER_FREE		_IOWR('v', 22, struct mem_obj)
+
 
 #define COMPAT_VCU_SET_OBJECT		_IOW('v', 0, struct share_obj)
 #define COMPAT_VCU_MVA_ALLOCATION	_IOWR('v', 1, struct compat_mem_obj)
@@ -215,6 +220,10 @@ enum gce_event_id {
 #define COMPAT_VCU_SET_MMAP_TYPE	_IOW('v', 13, struct map_obj)
 #define COMPAT_VCU_UBE_MVA_ALLOCATION	_IOWR('v', 17, struct compat_mem_obj)
 #define COMPAT_VCU_UBE_MVA_FREE	_IOWR('v', 18, struct compat_mem_obj)
+#define COMPAT_VCU_SECURE_HANDLE_ALLOCATION	_IOWR('v', 19, struct mem_obj)
+#define COMPAT_VCU_SECURE_HANDLE_FREE		_IOWR('v', 20, struct mem_obj)
+#define COMPAT_VCU_SECURE_BUFFER_ALLOCATION	_IOWR('v', 21, struct mem_obj)
+#define COMPAT_VCU_SECURE_BUFFER_FREE		_IOWR('v', 22, struct mem_obj)
 
 struct compat_mem_obj {
 	uint64_t iova;
@@ -238,6 +247,7 @@ struct share_obj {
 };
 
 struct log_test_nofuse {
+	int type; // 0: set log from ks to us; 1: get log from us to ks;
 	char log_info[LOG_INFO_SIZE];
 };
 

@@ -74,7 +74,8 @@ enum mtk_instance_state {
 	MTK_STATE_INIT = 1,
 	MTK_STATE_HEADER = 2,
 	MTK_STATE_FLUSH = 3,
-	MTK_STATE_ABORT = 4,
+	MTK_STATE_STOP = 4,
+	MTK_STATE_ABORT = 5,
 };
 
 enum mtk_codec_type {
@@ -364,6 +365,7 @@ struct venc_enc_param {
 	unsigned int slbc_addr;
 	char set_vcp_buf[1024];
 	char property_buf[1024];
+	char *log;
 };
 
 /*
@@ -373,6 +375,7 @@ struct venc_enc_param {
  */
 struct venc_frm_buf {
 	struct mtk_vcodec_mem fb_addr[MTK_VCODEC_MAX_PLANES];
+	u32 index;
 	unsigned int num_planes;
 	u64 timestamp;
 	bool has_meta;
@@ -469,6 +472,8 @@ struct mtk_vcodec_ctx {
 	const struct vdec_common_if *dec_if;
 	const struct venc_common_if *enc_if;
 	unsigned long drv_handle;
+	uintptr_t bs_list[VB2_MAX_FRAME+1];
+	uintptr_t fb_list[VB2_MAX_FRAME+1];
 
 	struct vdec_pic_info picinfo;
 	int dpb_size;
@@ -499,6 +504,7 @@ struct mtk_vcodec_ctx {
 	enum vdec_input_driven_mode input_driven;
 
 	/* for user lock HW case release check */
+	int user_lock_hw;
 	struct mutex hw_status;
 	int hw_locked[MTK_VDEC_HW_NUM];
 	int core_locked[MTK_VENC_HW_NUM];
@@ -510,7 +516,15 @@ struct mtk_vcodec_ctx {
 	enum v4l2_quantization quantization;
 	enum v4l2_xfer_func xfer_func;
 
+	int init_cnt;
 	int decoded_frame_cnt;
+
+	/* for timer to check active state of decoded ctx */
+	unsigned int vcp_action_cnt;
+	unsigned int last_vcp_action_cnt;
+	bool is_vcp_active;
+	struct mutex vcp_active_mutex;
+
 	struct mutex buf_lock;
 	struct mutex worker_lock;
 	struct slbc_data sram_data;
@@ -574,6 +588,7 @@ struct mtk_vcodec_dev {
 	struct iommu_domain *io_domain;
 
 	const char *platform;
+	enum mtk_instance_type type;
 	enum mtk_vcodec_ipm vdec_hw_ipm;
 	enum mtk_vcodec_ipm venc_hw_ipm;
 
@@ -599,6 +614,11 @@ struct mtk_vcodec_dev {
 
 	struct workqueue_struct *decode_workqueue;
 	struct workqueue_struct *encode_workqueue;
+	struct workqueue_struct *check_alive_workqueue;
+	struct work_struct check_alive_work;
+	struct timer_list vdec_active_checker;
+	bool has_timer;
+
 	int int_cond;
 	int int_type;
 	struct mutex ctx_mutex;
@@ -677,6 +697,9 @@ struct mtk_vcodec_dev {
 	struct mutex log_param_mutex;
 	struct mutex prop_param_mutex;
 	enum venc_lock enc_hw_locked[MTK_VENC_HW_NUM];
+
+	unsigned int svp_mtee;
+	unsigned int unique_domain;
 };
 
 static inline struct mtk_vcodec_ctx *fh_to_ctx(struct v4l2_fh *fh)
@@ -879,5 +902,12 @@ static inline struct mtk_vcodec_ctx *ctrl_to_ctx(struct v4l2_ctrl *ctrl)
 	(V4L2_CID_MPEG_MTK_BASE+48)
 #define V4L2_CID_MPEG_MTK_VCP_PROP \
 	(V4L2_CID_MPEG_MTK_BASE+49)
+
+#define V4L2_CID_MPEG_MTK_GET_LOG \
+	(V4L2_CID_MPEG_MTK_BASE+63)
+
+#define V4L2_CID_MPEG_MTK_GET_VCP_PROP \
+	(V4L2_CID_MPEG_MTK_BASE+64)
+
 
 #endif /* _MTK_VCODEC_DRV_H_ */

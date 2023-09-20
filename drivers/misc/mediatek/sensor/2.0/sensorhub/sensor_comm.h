@@ -22,6 +22,7 @@ enum sensor_comm_ctrl_cmd {
 	SENS_COMM_CTRL_TIMESYNC_CMD,
 	SENS_COMM_CTRL_SHARE_MEMORY_CMD,
 	SENS_COMM_CTRL_DEBUG_CMD,
+        SENS_COMM_CTRL_PARAM_CMD,//prize add by liuxuhui for modify send lcm param to light sensor
 	MAX_SENS_COMM_CTRL_CMD,
 };
 

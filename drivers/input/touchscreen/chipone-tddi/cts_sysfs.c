@@ -3198,6 +3198,126 @@ static const struct attribute_group *cts_dev_attr_groups[] = {
     NULL
 };
 
+static void set_gesture_state(struct chipone_ts_data *cts_data,bool value)
+{
+	union power_supply_propval val = {0,};
+	int ret = 0;
+    if (!cts_data->sw_psy) {
+       cts_data->sw_psy = power_supply_get_by_name("sar_cali");
+        if (!cts_data->sw_psy){
+            pr_err("cts_data->sw_psy psy not found!\n");
+			return;
+		}
+    }
+	
+	val.intval = (int)value;
+    ret = power_supply_set_property(cts_data->sw_psy, POWER_SUPPLY_PROP_TEMP, &val);
+	
+}
+
+static ssize_t gesture_show(struct device *dev,
+                   struct device_attribute *attr, char *buf)
+{
+   struct chipone_ts_data *cts_data = dev_get_drvdata(dev);
+    struct cts_device *cts_dev = &cts_data->cts_dev;
+
+    cts_info("Read '%s'", attr->attr.name);
+
+    return scnprintf(buf, PAGE_SIZE, "Gesture wakup is %s\n", cts_is_gesture_wakeup_enabled(cts_dev)? "ENABLED" : "DISABLED");
+ 
+    //return snprintf(buf, 6, "%d%d%d%d%d", temp[0], temp[1],temp[2], temp[3], temp[4]);
+}
+ 
+static ssize_t gesture_store(struct device *dev,
+           struct device_attribute *attr, const char *buf, size_t size)
+{
+    struct chipone_ts_data *cts_data = dev_get_drvdata(dev);
+    struct cts_device *cts_dev = &cts_data->cts_dev;
+    bool enable;
+    int ret;
+
+    cts_info("Write '%s' size %zu", attr->attr.name, size);
+
+    parse_arg(buf, size);
+
+    if (argc != 1) {
+        cts_err("Invalid num args %d", argc);
+        return -EINVAL;
+    }
+
+    ret = kstrtobool(argv[0], &enable);
+    if (ret) {
+        cts_err("Invalid param of enable");
+        return ret;
+    }
+
+    if (enable) {
+        cts_enable_gesture_wakeup(cts_dev);
+    } else {
+        cts_disable_gesture_wakeup(cts_dev);
+    }
+	
+	set_gesture_state(cts_data,enable);
+
+    return size;
+}
+ 
+static DEVICE_ATTR(gesture, 0664, gesture_show, gesture_store);
+
+int gezi_sysfs_add(struct platform_device *pdev)
+{
+	int err = 0;
+    pr_err("Add gezi device attr groups,gezi_sysfs_add\n");
+  
+	err = device_create_file(&pdev->dev, &dev_attr_gesture);
+	if (err) {
+        pr_err("sys file creation failed\n");
+        return -ENODEV;
+	}
+	return 0;
+}
+
+static const struct of_device_id gesture_of_match[] = {
+	{.compatible = "mediatek,gesture",},
+	{},
+};
+MODULE_DEVICE_TABLE(of, gesture_of_match);
+
+struct chipone_ts_data *g_cts_data = NULL;
+
+static int gesture_probe(struct platform_device *pdev)
+{
+	//pr_err
+	platform_set_drvdata(pdev,g_cts_data);
+	gezi_sysfs_add(pdev);
+	
+	return 0;
+}
+/*
+bool is_gesture_wakeup_enabled(void)
+{
+    return cts_is_gesture_wakeup_enabled(&g_cts_data->cts_dev);
+}
+EXPORT_SYMBOL(is_gesture_wakeup_enabled);
+*/
+
+static struct platform_driver gesture_driver = {
+	.probe = gesture_probe,
+	//.remove = gesture_remove,
+	//.shutdown = gesture_shutdown,
+	.driver = {
+		   .name = "common_node",
+		   .of_match_table = gesture_of_match,
+	},
+};
+
+int gesture_init(void)
+{
+	return platform_driver_register(&gesture_driver);
+}
+
+
+
 int cts_sysfs_add_device(struct device *dev)
 {
     struct chipone_ts_data *cts_data = dev_get_drvdata(dev);

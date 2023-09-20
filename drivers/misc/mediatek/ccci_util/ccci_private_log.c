@@ -81,6 +81,11 @@ int ccci_log_write(const char *fmt, ...)
 			fmt, args);
 	va_end(args);
 
+	if (write_len >= CCCI_LOG_MAX_WRITE) {
+		pr_notice("%s-%d: string too long, write_len(%d) is over max(%d)\n",
+			__func__, __LINE__, write_len, CCCI_LOG_MAX_WRITE);
+		write_len = CCCI_LOG_MAX_WRITE - 1;
+	}
 	spin_lock_irqsave(&ccci_log_buf.write_lock, flags);
 	if (ccci_log_buf.write_pos + write_len > CCCI_LOG_BUF_SIZE) {
 		first_half = CCCI_LOG_BUF_SIZE - ccci_log_buf.write_pos;
@@ -142,16 +147,19 @@ int ccci_log_write_raw(unsigned int set_flags, const char *fmt, ...)
 
 	if (set_flags & CCCI_DUMP_CURR_FLAG) {
 		write_len += scnprintf(temp_log + write_len,
-						CCCI_LOG_MAX_WRITE - write_len,
-						"[%d:%s]",
-						current->pid, current->comm);
+				CCCI_LOG_MAX_WRITE - write_len,
+				"[%d:%s]", current->pid, current->comm);
 	}
 
 	va_start(args, fmt);
 	write_len += vsnprintf(temp_log + write_len,
-					CCCI_LOG_MAX_WRITE - write_len,
-					fmt, args);
+			CCCI_LOG_MAX_WRITE - write_len, fmt, args);
 	va_end(args);
+	if (write_len >= CCCI_LOG_MAX_WRITE) {
+		pr_notice("%s-%d: string too long, write_len(%d) is over max(%d)\n",
+			__func__, __LINE__, write_len, CCCI_LOG_MAX_WRITE);
+		write_len = CCCI_LOG_MAX_WRITE - 1;
+	}
 
 	spin_lock_irqsave(&ccci_log_buf.write_lock, flags);
 	if (ccci_log_buf.write_pos + write_len > CCCI_LOG_BUF_SIZE) {
@@ -301,6 +309,8 @@ struct ccci_user_ctlb {
 	unsigned int sep_cnt1[2][CCCI_DUMP_MAX];
 	unsigned int sep_cnt2[2]; /* 1st MD; 2nd MD */
 	unsigned int busy;
+	char sep_buf[64];
+	char md_sep_buf[64];
 };
 static spinlock_t file_lock;
 
@@ -318,8 +328,6 @@ static struct ccci_dump_buffer dpmaif_dump_buf[2];
 static int buff_bind_md_id[5];
 static int md_id_bind_buf_id[5];
 static unsigned int buff_en_bit_map;
-static char sep_buf[64];
-static char md_sep_buf[64];
 
 struct buffer_node {
 	struct ccci_dump_buffer *ctlb_ptr;
@@ -666,7 +674,7 @@ static ssize_t ccci_dump_fops_read(struct file *file, char __user *buf,
 		if (!(buff_en_bit_map & (1U << i)))
 			continue;
 
-		md_sep_buf[13] = '0' + i;
+		user_info->md_sep_buf[13] = '0' + i;
 		/* dump data begin */
 		node_ptr = &node_array[i][0];
 
@@ -678,7 +686,7 @@ static ssize_t ccci_dump_fops_read(struct file *file, char __user *buf,
 			if (read_len == 0)
 				goto _out;
 			ret = copy_to_user(&buf[has_read],
-					&md_sep_buf[curr], read_len);
+					&(user_info->md_sep_buf[curr]), read_len);
 			if (ret == 0) {
 				has_read += read_len;
 				left -= read_len;
@@ -693,9 +701,9 @@ static ssize_t ccci_dump_fops_read(struct file *file, char __user *buf,
 			index = node_ptr->index;
 			node_ptr++;
 
-			format_separate_str(sep_buf, index);
+			format_separate_str(user_info->sep_buf, index);
 			/*set log title md id */
-			sep_buf[9] = '0' + md_id_bind_buf_id[i];
+			user_info->sep_buf[9] = '0' + md_id_bind_buf_id[i];
 			/* insert region separator "___" to buf */
 			curr = user_info->sep_cnt1[i][index];
 			if (curr < 64) {
@@ -705,7 +713,7 @@ static ssize_t ccci_dump_fops_read(struct file *file, char __user *buf,
 					goto _out;
 				ret = copy_to_user(
 						&buf[has_read],
-						&sep_buf[curr],
+						&(user_info->sep_buf[curr]),
 						read_len);
 				if (ret == 0) {
 					has_read += read_len;
@@ -816,12 +824,28 @@ unsigned int ccci_dump_fops_poll(struct file *fp, struct poll_table_struct *poll
 static int ccci_dump_fops_open(struct inode *inode, struct file *file)
 {
 	struct ccci_user_ctlb *user_info;
+	int i = 0;
 
 	user_info = kzalloc(sizeof(struct ccci_user_ctlb), GFP_KERNEL);
 	if (user_info == NULL) {
 		/*pr_notice("[ccci0/util]fail to alloc memory for ctlb\n"); */
 		return -1;
 	}
+
+	for (i = 1; i < (64-1); i++) {
+		user_info->sep_buf[i] = '_';
+		user_info->md_sep_buf[i] = '=';
+	}
+	user_info->sep_buf[i] = '\n';
+	user_info->md_sep_buf[i] = '\n';
+	user_info->sep_buf[0] = '\n';
+	user_info->md_sep_buf[0] = '\n';
+	user_info->md_sep_buf[8] = ' ';
+	user_info->md_sep_buf[9] = 'B';
+	user_info->md_sep_buf[10] = 'U';
+	user_info->md_sep_buf[11] = 'F';
+	user_info->md_sep_buf[12] = 'F';
+	user_info->md_sep_buf[14] = ' ';
 
 	file->private_data = user_info;
 	user_info->busy = 0;
@@ -882,20 +906,6 @@ static void ccci_dump_buffer_init(void)
 
 	spin_lock_init(&file_lock);
 
-	for (i = 1; i < (64-1); i++) {
-		sep_buf[i] = '_';
-		md_sep_buf[i] = '=';
-	}
-	sep_buf[i] = '\n';
-	md_sep_buf[i] = '\n';
-	sep_buf[0] = '\n';
-	md_sep_buf[0] = '\n';
-	md_sep_buf[8] = ' ';
-	md_sep_buf[9] = 'B';
-	md_sep_buf[10] = 'U';
-	md_sep_buf[11] = 'F';
-	md_sep_buf[12] = 'F';
-	md_sep_buf[14] = ' ';
 
 	for (i = 0; i < 5; i++) {
 		buff_bind_md_id[i] = -1;
@@ -928,12 +938,21 @@ static void ccci_dump_buffer_init(void)
 			node_ptr++;
 		}
 	}
+#if IS_ENABLED(CONFIG_ARM64)
 	mrdump_mini_add_extra_file((unsigned long)reg_dump_ctlb[0].buffer,
 		__pa_nodebug(reg_dump_ctlb[0].buffer),
 		CCCI_REG_DUMP_BUF, "EXTRA_MD");
 	mrdump_mini_add_extra_file((unsigned long)ke_dump_ctlb[0].buffer,
 		__pa_nodebug(ke_dump_ctlb[0].buffer),
 		CCCI_KE_DUMP_BUF, "EXTRA_CCCI");
+#else
+	mrdump_mini_add_extra_file((unsigned long)reg_dump_ctlb[0].buffer,
+		__pa(reg_dump_ctlb[0].buffer),
+		CCCI_REG_DUMP_BUF, "EXTRA_MD");
+	mrdump_mini_add_extra_file((unsigned long)ke_dump_ctlb[0].buffer,
+		__pa(ke_dump_ctlb[0].buffer),
+		CCCI_KE_DUMP_BUF, "EXTRA_CCCI");
+#endif
 }
 
 /* functions will be called by external */
@@ -1160,11 +1179,14 @@ int ccci_event_log(const char *fmt, ...)
 			current->comm);
 
 	va_start(args, fmt);
-	write_len += vsnprintf(temp_log
-					+ write_len,
-					CCCI_LOG_MAX_WRITE - write_len,
-					fmt, args);
+	write_len += vsnprintf(temp_log + write_len,
+			CCCI_LOG_MAX_WRITE - write_len, fmt, args);
 	va_end(args);
+	if (write_len >= CCCI_LOG_MAX_WRITE) {
+		pr_notice("%s-%d: string too long, write_len(%d) is over max(%d)\n",
+			__func__, __LINE__, write_len, CCCI_LOG_MAX_WRITE);
+		write_len = CCCI_LOG_MAX_WRITE - 1;
+	}
 
 	spin_lock_irqsave(&ccci_event_buffer.lock, flags);
 

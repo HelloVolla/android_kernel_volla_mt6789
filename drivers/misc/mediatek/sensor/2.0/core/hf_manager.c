@@ -1925,6 +1925,7 @@ void mtk_nanohub_calibration_to_hub(void)
 static	struct power_supply *sw_psy;
 static	struct power_supply_desc sw_desc;
 static	struct power_supply_config sw_cfg;
+static  unsigned char gesture_switch = 0;
 
 static enum power_supply_property pd_psy_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
@@ -1934,6 +1935,7 @@ static int psy_pd_property_is_writeable(struct power_supply *psy,
 {
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:/*connect state*/
+	case POWER_SUPPLY_PROP_TEMP:
 		return 1;
 	default:
 		return 0;
@@ -1947,6 +1949,9 @@ static int psy_pd_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ONLINE:
 		val->intval = 0;
 		break;
+	case POWER_SUPPLY_PROP_TEMP:
+		val->intval = gesture_switch;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -1959,14 +1964,15 @@ int psy_pd_set_property(struct power_supply *psy,
 			const union power_supply_propval *val)
 {
 
+	pr_err("gezi %s------%d\n",__func__,val->intval);
 	
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
-		pr_err("gezi %s------%d\n",__func__,val->intval);
 		mtk_nanohub_calibration_to_hub();
-		
 		break;
-
+	case POWER_SUPPLY_PROP_TEMP:
+		gesture_switch = val->intval;
+		break;
 	default:
 		return -EINVAL;
 	}

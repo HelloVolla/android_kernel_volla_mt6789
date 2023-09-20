@@ -84,8 +84,10 @@ static void set_cmos_sensor_8(struct subdrv_ctx *ctx,
 	if (_size_to_write + 2 >= _I2C_BUF_SIZE)
 		commit_write_sensor(ctx);
 
-	_i2c_data[_size_to_write++] = reg;
-	_i2c_data[_size_to_write++] = val;
+	if (!ctx->fast_mode_on) {
+		_i2c_data[_size_to_write++] = reg;
+		_i2c_data[_size_to_write++] = val;
+	}
 }
 
 static struct imgsensor_info_struct imgsensor_info = {
@@ -977,10 +979,38 @@ static void set_max_framerate(struct subdrv_ctx *ctx, UINT16 framerate, kal_bool
 		ctx->min_frame_length = ctx->frame_length;
 }	/*	set_max_framerate  */
 
+static kal_bool set_auto_flicker(struct subdrv_ctx *ctx)
+{
+	kal_uint16 realtime_fps = 0;
+
+	if (ctx->autoflicker_en) {
+		realtime_fps = ctx->pclk / ctx->line_length * 10
+				/ ctx->frame_length;
+		LOG_DEBUG("autoflicker enable, realtime_fps = %d\n",
+			realtime_fps);
+		if (realtime_fps >= 587 && realtime_fps <= 615) {
+			set_max_framerate(ctx, 586, 0);
+			write_frame_len(ctx, ctx->frame_length);
+			return KAL_TRUE;
+		}
+		if (realtime_fps >= 297 && realtime_fps <= 305) {
+			set_max_framerate(ctx, 296, 0);
+			write_frame_len(ctx, ctx->frame_length);
+			return KAL_TRUE;
+		}
+		if (realtime_fps >= 147 && realtime_fps <= 150) {
+			set_max_framerate(ctx, 146, 0);
+			write_frame_len(ctx, ctx->frame_length);
+			return KAL_TRUE;
+		}
+	}
+
+	return KAL_FALSE;
+}
+
 #define MAX_CIT_LSHIFT 7
 static void write_shutter(struct subdrv_ctx *ctx, kal_uint32 shutter, kal_bool gph)
 {
-	kal_uint16 realtime_fps = 0;
 	kal_uint16 l_shift = 1;
 	kal_uint32 fineIntegTime = fine_integ_line_table[ctx->current_scenario_id];
 	int i;
@@ -1005,17 +1035,8 @@ static void write_shutter(struct subdrv_ctx *ctx, kal_uint32 shutter, kal_bool g
 
 	if (gph)
 		set_cmos_sensor_8(ctx, 0x0104, 0x01);
-	if (ctx->autoflicker_en) {
-		realtime_fps = ctx->pclk / ctx->line_length * 10
-				/ ctx->frame_length;
-		LOG_DEBUG("autoflicker enable, realtime_fps = %d\n",
-			realtime_fps);
-		if (realtime_fps >= 297 && realtime_fps <= 305)
-			set_max_framerate(ctx, 296, 0);
-		else if (realtime_fps >= 147 && realtime_fps <= 150)
-			set_max_framerate(ctx, 146, 0);
-	}
 
+	set_auto_flicker(ctx);
 	ctx->shutter = shutter;
 
 	/* long expsoure */
@@ -1185,7 +1206,9 @@ static void set_multi_shutter_frame_length(struct subdrv_ctx *ctx,
 	}
 
 	set_cmos_sensor_8(ctx, 0x0104, 0x01);
-	write_frame_len(ctx, ctx->frame_length);
+
+	if (!set_auto_flicker(ctx))
+		write_frame_len(ctx, ctx->frame_length);
 	/* Long exposure */
 	set_cmos_sensor_8(ctx, 0x0202, (le >> 8) & 0xFF);
 	set_cmos_sensor_8(ctx, 0x0203, le & 0xFF);
@@ -1330,6 +1353,22 @@ static kal_uint16 gain2reg(struct subdrv_ctx *ctx, const kal_uint32 gain)
 static kal_uint32 set_gain_w_gph(struct subdrv_ctx *ctx, kal_uint32 gain, kal_bool gph)
 {
 	kal_uint16 reg_gain;
+	kal_uint32 min_gain, max_gain;
+
+	min_gain = BASEGAIN;
+	max_gain = imgsensor_info.max_gain;
+
+	//16x for full size mode
+	switch (ctx->sensor_mode) {
+	/* non-binning */
+	case IMGSENSOR_MODE_CUSTOM3:
+	case IMGSENSOR_MODE_CUSTOM7:
+		max_gain = 16 * BASEGAIN;
+		break;
+	/* binning */
+	default:
+		break;
+	}
 
 	if (gain < imgsensor_info.min_gain || gain > imgsensor_info.max_gain) {
 		LOG_INF("Error gain setting");
@@ -1686,7 +1725,6 @@ static void custom13_setting(struct subdrv_ctx *ctx)
 static void hdr_write_tri_shutter_w_gph(struct subdrv_ctx *ctx,
 		kal_uint32 le, kal_uint32 me, kal_uint32 se, kal_bool gph)
 {
-	kal_uint16 realtime_fps = 0;
 	kal_uint16 exposure_cnt = 0;
 	kal_uint32 fineIntegTime = fine_integ_line_table[ctx->current_scenario_id];
 	int i;
@@ -1747,19 +1785,10 @@ static void hdr_write_tri_shutter_w_gph(struct subdrv_ctx *ctx,
 	if (se)
 		se = se / exposure_cnt;
 
-	if (ctx->autoflicker_en) {
-		realtime_fps =
-			ctx->pclk / ctx->line_length * 10 /
-			ctx->frame_length;
-		if (realtime_fps >= 297 && realtime_fps <= 305)
-			set_max_framerate(ctx, 296, 0);
-		else if (realtime_fps >= 147 && realtime_fps <= 150)
-			set_max_framerate(ctx, 146, 0);
-	}
-
 	if (gph)
 		set_cmos_sensor_8(ctx, 0x0104, 0x01);
 
+	set_auto_flicker(ctx);
 	// write_frame_len(ctx, ctx->frame_length);
 
 	/* Long exposure */
@@ -3248,7 +3277,19 @@ static int feature_control(struct subdrv_ctx *ctx, MSDK_SENSOR_FEATURE_ENUM feat
 		break;
 	case SENSOR_FEATURE_GET_GAIN_RANGE_BY_SCENARIO:
 		*(feature_data + 1) = imgsensor_info.min_gain;
-		*(feature_data + 2) = imgsensor_info.max_gain;
+
+		switch (*feature_data) {
+		/* non-binning */
+		case SENSOR_SCENARIO_ID_CUSTOM3:
+		case SENSOR_SCENARIO_ID_CUSTOM7:
+			*(feature_data + 2) = BASEGAIN * 16;
+			break;
+		/* binning */
+		default:
+			*(feature_data + 2) = imgsensor_info.max_gain;
+			break;
+		}
+
 		break;
 	case SENSOR_FEATURE_GET_BASE_GAIN_ISO_AND_STEP:
 		*(feature_data + 0) = imgsensor_info.min_gain_iso;

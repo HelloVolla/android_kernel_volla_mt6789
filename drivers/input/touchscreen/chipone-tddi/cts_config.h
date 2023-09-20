@@ -78,7 +78,7 @@
 #endif /* CONFIG_CTS_VIRTUALKEY */
 
 /* Gesture wakeup */
-//#define CFG_CTS_GESTURE
+#define CFG_CTS_GESTURE
 #ifdef CFG_CTS_GESTURE
 #define GESTURE_UP                          0x11
 #define GESTURE_C                           0x12

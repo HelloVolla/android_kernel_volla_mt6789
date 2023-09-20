@@ -38,7 +38,7 @@ static int mtk_vcodec_vcp_log_write(const char *val, const struct kernel_param *
 {
 	if (!(val == NULL || strlen(val) == 0)) {
 		mtk_v4l2_debug(0, "val: %s, len: %zu", val, strlen(val));
-		mtk_vcodec_set_log(dev_ptr, val, MTK_VCODEC_LOG_INDEX_LOG);
+		mtk_vcodec_set_log(NULL, dev_ptr, val, MTK_VCODEC_LOG_INDEX_LOG, NULL);
 	}
 	return 0;
 }
@@ -51,7 +51,7 @@ static int mtk_vcodec_vcp_property_write(const char *val, const struct kernel_pa
 {
 	if (!(val == NULL || strlen(val) == 0)) {
 		mtk_v4l2_debug(0, "val: %s, len: %zu", val, strlen(val));
-		mtk_vcodec_set_log(dev_ptr, val, MTK_VCODEC_LOG_INDEX_PROP);
+		mtk_vcodec_set_log(NULL, dev_ptr, val, MTK_VCODEC_LOG_INDEX_PROP, NULL);
 	}
 	return 0;
 }
@@ -88,7 +88,10 @@ static int fops_vcodec_open(struct file *file)
 	 * used for logging.
 	 */
 	ctx->enc_flush_buf = mtk_buf;
-	ctx->id = dev->id_counter++;
+	dev->id_counter++;
+	if (dev->id_counter == 0)
+		dev->id_counter++;
+	ctx->id = dev->id_counter;
 	v4l2_fh_init(&ctx->fh, video_devdata(file));
 	file->private_data = &ctx->fh;
 	v4l2_fh_add(&ctx->fh);
@@ -147,8 +150,8 @@ static int fops_vcodec_open(struct file *file)
 	dev->enc_cnt++;
 
 	mutex_unlock(&dev->dev_mutex);
-	mtk_v4l2_debug(0, "%s encoder [%d]", dev_name(&dev->plat_dev->dev),
-				   ctx->id);
+	mtk_v4l2_debug(0, "%s encoder [%d][%d]", dev_name(&dev->plat_dev->dev),
+				   ctx->id, dev->enc_cnt);
 	return ret;
 
 	/* Deinit when failure occurred */
@@ -174,8 +177,15 @@ static int fops_vcodec_release(struct file *file)
 	struct mtk_vcodec_dev *dev = video_drvdata(file);
 	struct mtk_vcodec_ctx *ctx = fh_to_ctx(file->private_data);
 
-	mtk_v4l2_debug(0, "[%d] encoder", ctx->id);
+	mtk_v4l2_debug(0, "[%d][%d] encoder", ctx->id, dev->enc_cnt);
 	mutex_lock(&dev->dev_mutex);
+
+	/*
+	 * Check no more ipi in progress, to avoid inst abort since vcp
+	 * wdt (maybe cause by vdec) but still has ipi waiting timeout
+	 */
+	mutex_lock(&dev->ipi_mutex);
+	mutex_unlock(&dev->ipi_mutex);
 
 	mtk_vcodec_enc_empty_queues(file, ctx);
 	mutex_lock(&ctx->worker_lock);
@@ -296,6 +306,7 @@ static int mtk_vcodec_enc_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
+	dev->type = MTK_INST_ENCODER;
 	INIT_LIST_HEAD(&dev->ctx_list);
 	dev->plat_dev = pdev;
 #if IS_ENABLED(CONFIG_VIDEO_MEDIATEK_VCU)
@@ -419,6 +430,10 @@ static int mtk_vcodec_enc_probe(struct platform_device *pdev)
 	dev->venc_ports[0].total_port_num = j;
 	dev->venc_ports[1].total_port_num = k;
 	pr_info("after get port-def  port num %d %d\n", j, k);
+
+	ret = of_property_read_u32(pdev->dev.of_node, "mediatek,uniq_dom", &dev->unique_domain);
+	if (ret)
+		mtk_v4l2_debug(0, "[VENC] Cannot get uniq dom, skip");
 
 	for (i = 0; i < MTK_VENC_HW_NUM; i++) {
 		sema_init(&dev->enc_sem[i], 1);
@@ -563,6 +578,7 @@ static const struct of_device_id mtk_vcodec_enc_match[] = {
 	{.compatible = "mediatek,mt6895-vcodec-enc",},
 	{.compatible = "mediatek,mt6855-vcodec-enc",},
 	{.compatible = "mediatek,mt6833-vcodec-enc",},
+	{.compatible = "mediatek,mt6768-vcodec-enc",},
 	{.compatible = "mediatek,mt6789-vcodec-enc",},
 	{.compatible = "mediatek,venc_gcon",},
 	{},

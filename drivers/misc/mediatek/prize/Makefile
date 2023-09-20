@@ -17,3 +17,6 @@ obj-$(CONFIG_PRIZE_AW2016A)		+= aw2016a/
 obj-$(CONFIG_LEDS_AW210XX)		+= AW210XX/
 obj-$(CONFIG_PRIZE_HARDWARE_INFO)		+= hardware_info/
 obj-$(CONFIG_PRIZE_EXERGEN)		+= prize_exergen/
+obj-$(CONFIG_PRIZE_DMR009)	+= dmr009/
+#prize add by liuxuhui for modify send lcm param to light sensor
+obj-$(CONFIG_PRIZE_PIXEL_MANAGER) += pixel_manager/

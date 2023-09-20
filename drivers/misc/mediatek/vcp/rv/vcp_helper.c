@@ -74,7 +74,7 @@ uint32_t msg_vcp_ready0, msg_vcp_ready1;
 char msg_vcp_err_info0[40], msg_vcp_err_info1[40];
 
 /* vcp ready status for notify*/
-unsigned int vcp_ready[VCP_CORE_TOTAL];
+volatile unsigned int vcp_ready[VCP_CORE_TOTAL];
 
 /* vcp enable status*/
 unsigned int vcp_enable[VCP_CORE_TOTAL];
@@ -201,6 +201,8 @@ struct vcp_status_fp vcp_helper_fp = {
 	.vcp_register_feature		= vcp_register_feature,
 	.vcp_deregister_feature		= vcp_deregister_feature,
 	.is_vcp_ready				= is_vcp_ready,
+	.vcp_A_register_notify		= vcp_A_register_notify,
+	.vcp_A_unregister_notify	= vcp_A_unregister_notify,
 };
 
 #undef pr_debug
@@ -272,6 +274,21 @@ static int vcp_ipi_dbg_resume_noirq(struct device *dev)
 	}
 
 	return 0;
+}
+
+static void vcp_wait_awake_count(void)
+{
+	int i = 0;
+
+	while (vcp_awake_counts[VCP_A_ID] != 0) {
+		i += 1;
+		mdelay(1);
+		if (i > 200) {
+			pr_info("wait vcp_awake_counts timeout %d\n", vcp_awake_counts[VCP_A_ID]);
+			break;
+		}
+	}
+	pr_info("[VCP] %s wait count: %d\n", __func__, i);
 }
 
 /*
@@ -726,7 +743,7 @@ void vcp_enable_pm_clk(enum feature_id id)
 		vcp_enable_irqs();
 
 		if (!is_vcp_ready(VCP_A_ID))
-			reset_vcp(VCP_ALL_ENABLE);
+			reset_vcp(VCP_ALL_RESUME);
 	}
 	pwclkcnt++;
 	pr_notice("[VCP] %s id %d done %d clk %d\n", __func__, id,
@@ -764,6 +781,11 @@ void vcp_disable_pm_clk(enum feature_id id)
 		flush_workqueue(vcp_reset_workqueue);
 #endif
 		waitCnt = vcp_wait_ready_sync(id);
+
+		mutex_lock(&vcp_A_notify_mutex);
+		vcp_extern_notify(VCP_EVENT_STOP);
+		mutex_unlock(&vcp_A_notify_mutex);
+
 		vcp_disable_irqs();
 		vcp_ready[VCP_A_ID] = 0;
 
@@ -784,9 +806,7 @@ void vcp_disable_pm_clk(enum feature_id id)
 			readl(VCP_BUS_DEBUG_OUT), waitCnt);
 
 		vcp_disable_dapc();
-		mutex_lock(&vcp_A_notify_mutex);
-		vcp_extern_notify(VCP_EVENT_STOP);
-		mutex_unlock(&vcp_A_notify_mutex);
+		vcp_wait_awake_count();
 
 		ret = pm_runtime_put_sync(vcp_io_devs[VCP_IOMMU_256MB1]);
 		if (ret)
@@ -814,6 +834,7 @@ static int vcp_pm_event(struct notifier_block *notifier
 
 	switch (pm_event) {
 	case PM_SUSPEND_PREPARE:
+		vcp_extern_notify(VCP_EVENT_PRE_SUSPEND);
 		mutex_lock(&vcp_A_notify_mutex);
 		vcp_extern_notify(VCP_EVENT_SUSPEND);
 		mutex_unlock(&vcp_A_notify_mutex);
@@ -844,6 +865,9 @@ static int vcp_pm_event(struct notifier_block *notifier
 #endif
 			vcp_wait_core_stop_timeout(1);
 			vcp_disable_dapc();
+
+			vcp_wait_awake_count();
+
 			retval = pm_runtime_put_sync(vcp_io_devs[VCP_IOMMU_256MB1]);
 			if (retval)
 				pr_debug("[VCP] %s: pm_runtime_put_sync\n", __func__);
@@ -881,7 +905,7 @@ static int vcp_pm_event(struct notifier_block *notifier
 			vcp_enable_irqs();
 #if VCP_RECOVERY_SUPPORT
 			cpuidle_pause_and_lock();
-			reset_vcp(VCP_ALL_SUSPEND);
+			reset_vcp(VCP_ALL_RESUME);
 			is_suspending = false;
 			waitCnt = vcp_wait_ready_sync(RTOS_FEATURE_ID);
 			cpuidle_resume_and_unlock();
@@ -889,6 +913,10 @@ static int vcp_pm_event(struct notifier_block *notifier
 		}
 		is_suspending = false;
 		mutex_unlock(&vcp_pw_clk_mutex);
+
+		mutex_lock(&vcp_A_notify_mutex);
+		vcp_extern_notify(VCP_EVENT_RESUME);
+		mutex_unlock(&vcp_A_notify_mutex);
 
 		// SMC call to TFA / DEVAPC
 		// arm_smccc_smc(MTK_SIP_KERNEL_VCP_CONTROL, MTK_TINYSYS_VCP_KERNEL_OP_XXX,
@@ -972,7 +1000,7 @@ int reset_vcp(int reset)
 		vcp_ready_timer[VCP_A_ID].tl.expires = jiffies + VCP_READY_TIMEOUT;
 		add_timer(&vcp_ready_timer[VCP_A_ID].tl);
 #endif
-		if (reset == VCP_ALL_SUSPEND) {
+		if (reset == VCP_ALL_RESUME) {
 			arm_smccc_smc(MTK_SIP_TINYSYS_VCP_CONTROL,
 				MTK_TINYSYS_VCP_KERNEL_OP_RESET_RELEASE,
 				0, 0, 0, 0, 0, 0, &res);
@@ -1493,11 +1521,11 @@ EXPORT_SYMBOL_GPL(vcp_get_reserve_mem_virt);
 
 phys_addr_t vcp_get_reserve_mem_size(enum vcp_reserve_mem_id_t id)
 {
-	if (id >= NUMS_MEM_ID) {
-		pr_notice("[VCP] no reserve memory for %d", id);
-		return 0;
-	} else
+	if (id < NUMS_MEM_ID)
 		return vcp_reserve_mblock[id].size;
+
+	pr_notice("[VCP] no reserve memory for %d", id);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(vcp_get_reserve_mem_size);
 
@@ -1510,7 +1538,7 @@ static int vcp_reserve_memory_ioremap(struct platform_device *pdev)
 	enum vcp_reserve_mem_id_t id;
 	phys_addr_t accumlate_memory_size = 0;
 	unsigned int vcp_mem_num = 0;
-	unsigned int i, m_idx, m_size;
+	unsigned int i = 0, m_idx = 0, m_size = 0;
 	int ret;
 #if VCP_IOMMU_ENABLE
 	uint64_t iova_upper = 0;
@@ -2015,7 +2043,7 @@ static bool vcp_ipi_table_init(struct mtk_mbox_device *vcp_mboxdev, struct platf
 		send_item_num = 3,
 		recv_item_num = 4
 	};
-	u32 i, ret, mbox_id, recv_opt;
+	u32 i, ret, mbox_id = 0, recv_opt = 0;
 	of_property_read_u32(pdev->dev.of_node, "mbox_count"
 						, &vcp_mboxdev->count);
 	if (!vcp_mboxdev->count) {
@@ -2255,6 +2283,10 @@ static int vcp_device_probe(struct platform_device *pdev)
 	vcpreg.sram = devm_ioremap_resource(dev, res);
 	if (IS_ERR((void const *) vcpreg.sram)) {
 		pr_notice("[VCP] vcpreg.sram error\n");
+		return -1;
+	}
+	if (res == NULL) {
+		pr_notice("[VCP] platform_get_resource_byname error\n");
 		return -1;
 	}
 	vcpreg.total_tcmsize = (unsigned int)resource_size(res);

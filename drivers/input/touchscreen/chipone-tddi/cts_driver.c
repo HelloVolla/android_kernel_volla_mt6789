@@ -157,7 +157,11 @@ int cts_driver_probe(struct device *device, enum cts_bus_type bus_type)
     cts_data->cts_dev.bus_type = bus_type;
     dev_set_drvdata(device, cts_data);
     cts_data->device = device;
-
+	
+#ifdef CFG_CTS_GESTURE	
+	g_cts_data = cts_data;
+	gesture_init();
+#endif
     ret = cts_init_platform_data(cts_data->pdata, device, bus_type);
     if (ret) {
         cts_err("Init platform data failed %d(%s)",

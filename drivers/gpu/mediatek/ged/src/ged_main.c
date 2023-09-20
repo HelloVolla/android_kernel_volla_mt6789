@@ -130,6 +130,8 @@ static const struct proc_ops ged_proc_fops = {
 
 unsigned int g_ged_gpueb_support;
 unsigned int g_ged_fdvfs_support;
+int g_ged_slide_window_support;
+unsigned int g_ged_gpu_freq_notify_support;
 unsigned int g_fastdvfs_mode;
 unsigned int g_fastdvfs_margin;
 #define GED_TARGET_UNLIMITED_FPS 240
@@ -186,40 +188,41 @@ static long ged_dispatch(struct file *pFile,
 
 	/* We make sure the both size are GE 0 integer.
 	 */
-	if (psBridgePackageKM->i32InBufferSize >= 0
-		&& psBridgePackageKM->i32OutBufferSize >= 0) {
+	if (psBridgePackageKM->i32InBufferSize > 0 &&
+		psBridgePackageKM->i32OutBufferSize > 0) {
+		int32_t inputBufferSize =
+				psBridgePackageKM->i32InBufferSize;
 
-		if (psBridgePackageKM->i32InBufferSize > 0) {
-			int32_t inputBufferSize =
-					psBridgePackageKM->i32InBufferSize;
-
-			if (GED_BRIDGE_COMMAND_GE_ALLOC ==
-					GED_GET_BRIDGE_ID(
-					psBridgePackageKM->ui32FunctionID)) {
-				inputBufferSize = sizeof(int) +
-				sizeof(uint32_t) * GE_ALLOC_STRUCT_NUM;
-			}
-
-			pvIn = kmalloc(inputBufferSize, GFP_KERNEL);
-
-			if (pvIn == NULL)
-				goto dispatch_exit;
-
-			if (ged_copy_from_user(pvIn,
-				psBridgePackageKM->pvParamIn,
-				inputBufferSize) != 0) {
-				GED_LOGE("Failed to ged_copy_from_user\n");
+		if (GED_BRIDGE_COMMAND_GE_ALLOC ==
+				GED_GET_BRIDGE_ID(
+				psBridgePackageKM->ui32FunctionID)) {
+			inputBufferSize = sizeof(int) +
+			sizeof(uint32_t) * GE_ALLOC_STRUCT_NUM;
+			// hardcode region_num = GE_ALLOC_STRUCT_NUM,
+			// need check input buffer size
+			if (psBridgePackageKM->i32InBufferSize <
+				inputBufferSize) {
+				GED_LOGE("Failed to region_num, it must be %d\n",
+					GE_ALLOC_STRUCT_NUM);
 				goto dispatch_exit;
 			}
 		}
 
-		if (psBridgePackageKM->i32OutBufferSize > 0) {
-			pvOut = kzalloc(psBridgePackageKM->i32OutBufferSize,
-				GFP_KERNEL);
+		pvIn = kmalloc(inputBufferSize, GFP_KERNEL);
+		if (pvIn == NULL)
+			goto dispatch_exit;
 
-			if (pvOut == NULL)
-				goto dispatch_exit;
+		if (ged_copy_from_user(pvIn,
+			psBridgePackageKM->pvParamIn,
+			inputBufferSize) != 0) {
+			GED_LOGE("Failed to ged_copy_from_user\n");
+			goto dispatch_exit;
 		}
+
+		pvOut = kzalloc(psBridgePackageKM->i32OutBufferSize,
+			GFP_KERNEL);
+		if (pvOut == NULL)
+			goto dispatch_exit;
 
 		/* Make sure that the UM will never break the KM.
 		 * Check IO size are both matched the size of IO sturct.
@@ -304,11 +307,13 @@ static long ged_dispatch(struct file *pFile,
 			break;
 		case GED_BRIDGE_COMMAND_GE_GET:
 			VALIDATE_ARG(GE_GET, GE_GET);
-			ret = ged_bridge_ge_get(pvIn, pvOut);
+			ret = ged_bridge_ge_get(pvIn, pvOut,
+				psBridgePackageKM->i32OutBufferSize);
 			break;
 		case GED_BRIDGE_COMMAND_GE_SET:
 			VALIDATE_ARG(GE_SET, GE_SET);
-			ret = ged_bridge_ge_set(pvIn, pvOut);
+			ret = ged_bridge_ge_set(pvIn, pvOut,
+				psBridgePackageKM->i32InBufferSize);
 			break;
 		case GED_BRIDGE_COMMAND_GE_INFO:
 			VALIDATE_ARG(GE_INFO, GE_INFO);
@@ -338,11 +343,9 @@ static long ged_dispatch(struct file *pFile,
 			break;
 		}
 
-		if (psBridgePackageKM->i32OutBufferSize > 0) {
-			if (ged_copy_to_user(psBridgePackageKM->pvParamOut,
+		if (ged_copy_to_user(psBridgePackageKM->pvParamOut,
 			pvOut, psBridgePackageKM->i32OutBufferSize) != 0) {
-				goto dispatch_exit;
-			}
+			goto dispatch_exit;
 		}
 	}
 
@@ -436,7 +439,7 @@ EXPORT_SYMBOL(ged_is_fdvfs_support);
 GED_ERROR check_eb_config(void)
 {
 	struct device_node *gpueb_node, *fdvfs_node;
-	int ret = GED_OK;
+	int ret = GED_OK, ret_temp;
 
 	gpueb_node = of_find_compatible_node(NULL, NULL, "mediatek,gpueb");
 	if (!gpueb_node) {
@@ -453,22 +456,51 @@ GED_ERROR check_eb_config(void)
 	if (!fdvfs_node) {
 		GED_LOGE("No fdvfs node.");
 		g_ged_fdvfs_support = 0;
+		g_ged_gpu_freq_notify_support = 0;
 		g_ged_gpueb_support = 0;
 	} else {
-		of_property_read_u32(fdvfs_node, "fdvfs-policy-support",
+		ret_temp = of_property_read_u32(fdvfs_node, "fdvfs-policy-support",
 				&g_ged_fdvfs_support);
-		if (unlikely(ret))
-			GED_LOGE("fail to read fdvfs-policy-support (%d)", ret);
+		if (unlikely(ret_temp))
+			GED_LOGE("fail to read fdvfs-policy-support (%d)", ret_temp);
+		ret_temp = of_property_read_u32(fdvfs_node, "gpu-freq-notify-support",
+				&g_ged_gpu_freq_notify_support);
+		if (unlikely(ret_temp))
+			GED_LOGE("fail to read gpu-freq-notify-support (%d)", ret_temp);
 	}
 
 	if (g_ged_gpueb_support && g_ged_fdvfs_support)
 		g_fastdvfs_mode = 1;
 
-	GED_LOGI("%s. gpueb_support: %d, fdvfs_support: %d, fastdvfs_mode: %d",
-		__func__, g_ged_gpueb_support, g_ged_fdvfs_support, g_fastdvfs_mode);
+	GED_LOGI("%s. gpueb_support: %d, fdvfs_support: %d, gpu_freq_notify_support: %d",
+		__func__, g_ged_gpueb_support, g_ged_fdvfs_support,
+		g_ged_gpu_freq_notify_support);
+	GED_LOGI("fastdvfs_mode: %d", g_fastdvfs_mode);
 
 	return ret;
 }
+
+GED_ERROR check_afs_config(void)
+{
+	struct device_node *gpu_afs_node;
+	int ret = GED_OK;
+
+	gpu_afs_node = of_find_compatible_node(NULL, NULL, "mediatek,gpu_afs");
+	if (!gpu_afs_node) {
+		GED_LOGE("No gpu afs node.");
+		g_ged_slide_window_support = -1;
+	} else {
+		ret = of_property_read_u32(gpu_afs_node, "afs-policy-support",
+			&g_ged_slide_window_support);
+		if (unlikely(ret))
+			GED_LOGE("fail to read afs-policy-support (%d)", ret);
+	}
+	if (g_ged_slide_window_support == 1)
+		g_loading_slide_enable = 1;
+
+	return ret;
+}
+
 
 /******************************************************************************
  * Module related
@@ -491,18 +523,28 @@ static int ged_pdrv_probe(struct platform_device *pdev)
 
 	g_ged_gpueb_support = 0;
 	g_ged_fdvfs_support = 0;
+	g_ged_gpu_freq_notify_support = 0;
 	g_fastdvfs_mode		= 0;
 	g_fastdvfs_margin   = 0;
+	g_loading_slide_enable = 0;
 	err = check_eb_config();
 	if (unlikely(err != GED_OK)) {
 		GED_LOGE("Failed to check ged config!\n");
 		goto ERROR;
 	}
 
+#if defined(MTK_GPU_EB_SUPPORT)
 	if (g_ged_gpueb_support) {
 		fastdvfs_proc_init();
 		fdvfs_init();
 		GED_LOGI("@%s: fdvfs init done\n", __func__);
+	}
+#endif
+
+	err = check_afs_config();
+	if (unlikely(err != GED_OK)) {
+		GED_LOGE("Failed to check ged config!\n");
+		goto ERROR;
 	}
 
 	err = ged_sysfs_init();
@@ -630,10 +672,12 @@ static int ged_pdrv_remove(struct platform_device *pdev)
 	ghLogBuf_DVFS = 0;
 #endif
 
+#if defined(MTK_GPU_EB_SUPPORT)
 	if (g_ged_gpueb_support) {
 		fastdvfs_proc_exit();
 		fdvfs_exit();
 	}
+#endif
 
 	ged_log_buf_free(ghLogBuf_ftrace);
 	ghLogBuf_ftrace = 0;
