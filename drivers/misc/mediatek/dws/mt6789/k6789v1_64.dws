@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--dct_version="2.5" buid_sn="161102" dws_modification_time="07.14.2022.21:48:23"-->
+<!--dct_version="2.5" buid_sn="161102" dws_modification_time="11.12.2022.09:31:26"-->
 <dct_cfg>
     <general chip="MT6789">
         <proj>MT6789</proj>
@@ -2008,26 +2008,6 @@
         </module>
         <module name="md1_eint">
             <count>3</count>
-            <eint0>
-                <varName>MD1_SIM1_HOT_PLUG_EINT</varName>
-                <debounce_time>10</debounce_time>
-                <polarity>High</polarity>
-                <sensitive_level>Level</sensitive_level>
-                <debounce_en>Enable</debounce_en>
-                <dedicated_en>Disable</dedicated_en>
-                <srcPin ref_gpio="GPIO23">INT_SIM1_MODE1</srcPin>
-                <socketType>0</socketType>
-            </eint0>
-            <eint1>
-                <varName>MD1_SIM2_HOT_PLUG_EINT</varName>
-                <debounce_time>10</debounce_time>
-                <polarity>High</polarity>
-                <sensitive_level>Level</sensitive_level>
-                <debounce_en>Enable</debounce_en>
-                <dedicated_en>Disable</dedicated_en>
-                <srcPin ref_gpio="GPIO24">INT_SIM2_MODE1</srcPin>
-                <socketType>0</socketType>
-            </eint1>
         </module>
         <module name="kpd">
             <row>8</row>
