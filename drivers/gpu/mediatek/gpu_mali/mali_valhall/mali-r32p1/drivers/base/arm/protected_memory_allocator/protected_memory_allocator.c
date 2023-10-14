@@ -29,6 +29,8 @@
 #include <linux/io.h>
 #include <linux/protected_memory_allocator.h>
 
+#define MTK_PMA_DEBUG (1)
+
 /* Size of a bitfield element in bytes */
 #define BITFIELD_ELEM_SIZE sizeof(u64)
 
@@ -37,6 +39,18 @@
 
 /* Order 6 (ie, 64) corresponds to the number of pages held in a bitfield */
 #define ORDER_OF_PAGES_PER_BITFIELD_ELEM 6
+
+#if MTK_PMA_DEBUG
+#define MAX_NUM_ACITVE_CONTEXT 283
+#endif /* MTK_PMA_DEBUG */
+
+#if MTK_PMA_DEBUG
+struct simple_pma_recording {
+	int tgid;
+	uint32_t allocated_pages;
+	char name[16];
+};
+#endif /* MTK_PMA_DEBUG */
 
 /**
  * struct simple_pma_device - Simple implementation of a protected memory
@@ -59,6 +73,9 @@ struct simple_pma_device {
 	size_t rmem_size;
 	size_t num_free_pages;
 	spinlock_t rmem_lock;
+#if MTK_PMA_DEBUG
+	struct simple_pma_recording allocation_recording[MAX_NUM_ACITVE_CONTEXT];
+#endif /* MTK_PMA_DEBUG */
 };
 
 /**
@@ -70,6 +87,22 @@ struct simple_pma_device {
 #define ALLOC_PAGES_BITFIELD_ARR_SIZE(num_pages) \
 	((PAGES_PER_BITFIELD_ELEM * (0 != (num_pages % PAGES_PER_BITFIELD_ELEM)) + \
 	num_pages) / PAGES_PER_BITFIELD_ELEM)
+
+#if MTK_PMA_DEBUG
+static void show_simple_pma_recording(struct simple_pma_device *const epma_dev)
+{
+	size_t i;
+	pr_info("[PMA] allocation_recording ++\n");
+	for (i = 0; i < MAX_NUM_ACITVE_CONTEXT; i++) {
+		if (epma_dev->allocation_recording[i].tgid != -1)
+			pr_info("[PMA][PID-%d][Name-%s] allocated pages = %d \n",
+				epma_dev->allocation_recording[i].tgid,
+				epma_dev->allocation_recording[i].name,
+				epma_dev->allocation_recording[i].allocated_pages);
+	}
+	pr_info("[PMA] allocation_recording --\n");
+}
+#endif /* MTK_PMA_DEBUG */
 
 /**
  * small_granularity_alloc() - Allocate 1-32 power-of-two pages.
@@ -202,6 +235,10 @@ static struct protected_memory_allocation *simple_pma_alloc_page(
 	size_t i;
 	size_t bit;
 	size_t count;
+#if MTK_PMA_DEBUG
+	uint32_t empty_recording_idx;
+#endif /* MTK_PMA_DEBUG */
+
 
 	dev_vdbg(epma_dev->dev, "%s(pma_dev=%px, order=%u\n",
 		__func__, (void *)pma_dev, order);
@@ -240,10 +277,47 @@ static struct protected_memory_allocation *simple_pma_alloc_page(
 
 	spin_lock(&epma_dev->rmem_lock);
 
+#if MTK_PMA_DEBUG
+	empty_recording_idx = -1;
+	for (i = 0; i < MAX_NUM_ACITVE_CONTEXT; i++) {
+		/* When iterate the array find the empty for first allocation of the tgid */
+		if ((epma_dev->allocation_recording[i].tgid == -1) &&
+			(empty_recording_idx == -1)) {
+			empty_recording_idx = i;
+		}
+
+		/* If the tgid already exist in the array add the requesting page num */
+		if (epma_dev->allocation_recording[i].tgid == current->tgid) {
+			epma_dev->allocation_recording[i].allocated_pages += num_pages_to_alloc;
+			break;
+		}
+	}
+
+	/* Assign the tgid and requesting page num for the first time allocation */
+	if ((i == MAX_NUM_ACITVE_CONTEXT) && (empty_recording_idx < MAX_NUM_ACITVE_CONTEXT)) {
+		epma_dev->allocation_recording[empty_recording_idx].tgid = current->tgid;
+		strncpy(epma_dev->allocation_recording[empty_recording_idx].name, current->comm, 16);
+		epma_dev->allocation_recording[empty_recording_idx].name[15] = '\0';
+		epma_dev->allocation_recording[empty_recording_idx].allocated_pages = num_pages_to_alloc;
+	}
+#endif /* MTK_PMA_DEBUG */
+
 	if (epma_dev->num_free_pages < num_pages_to_alloc) {
 		dev_err(epma_dev->dev, "not enough free pages %u / %u\n",
                         num_pages_to_alloc, epma_dev->num_free_pages);
 		devm_kfree(epma_dev->dev, pma);
+#if MTK_PMA_DEBUG
+		show_simple_pma_recording(epma_dev);
+		/* Find the corresponding tgid and reduce the allocation page num */
+		for (i = 0; i < MAX_NUM_ACITVE_CONTEXT; i++) {
+			if (epma_dev->allocation_recording[i].tgid == current->tgid) {
+				epma_dev->allocation_recording[i].allocated_pages -= num_pages_to_alloc;
+				if (epma_dev->allocation_recording[i].allocated_pages == 0)
+					epma_dev->allocation_recording[i].tgid = -1;
+				break;
+			}
+		}
+#endif /* MTK_PMA_DEBUG */
 		spin_unlock(&epma_dev->rmem_lock);
 		return NULL;
 	}
@@ -326,6 +400,19 @@ static struct protected_memory_allocation *simple_pma_alloc_page(
 		}
 	}
 
+#if MTK_PMA_DEBUG
+	show_simple_pma_recording(epma_dev);
+	/* Find the corresponding tgid and reduce the allocation page num */
+	for (i = 0; i < MAX_NUM_ACITVE_CONTEXT; i++) {
+		if (epma_dev->allocation_recording[i].tgid == current->tgid) {
+			epma_dev->allocation_recording[i].allocated_pages -= num_pages_to_alloc;
+			if (epma_dev->allocation_recording[i].allocated_pages == 0)
+				epma_dev->allocation_recording[i].tgid = -1;
+			break;
+		}
+	}
+#endif /* MTK_PMA_DEBUG */
+
 	spin_unlock(&epma_dev->rmem_lock);
 	devm_kfree(epma_dev->dev, pma);
 
@@ -393,6 +480,18 @@ static void simple_pma_free_page(
 	WARN_ON((bitfield_idx + num_bitfield_elems_used_by_alloc) >= alloc_pages_bitmap_size);
 
 	spin_lock(&epma_dev->rmem_lock);
+
+#if MTK_PMA_DEBUG
+	/* Find the corresponding tgid and reduce the allocation page num */
+	for (i = 0; i < MAX_NUM_ACITVE_CONTEXT; i++) {
+		if (epma_dev->allocation_recording[i].tgid == current->tgid) {
+			epma_dev->allocation_recording[i].allocated_pages -= num_pages_in_allocation;
+			if (epma_dev->allocation_recording[i].allocated_pages == 0)
+				epma_dev->allocation_recording[i].tgid = -1;
+			break;
+		}
+	}
+#endif /* MTK_PMA_DEBUG */
 
 	if (pma->order < ORDER_OF_PAGES_PER_BITFIELD_ELEM) {
 		bitfield = &epma_dev->allocated_pages_bitfield_arr[bitfield_idx];
@@ -531,6 +630,9 @@ static int mtk_protected_memory_allocator_probe(struct platform_device *pdev)
 	size_t alloc_bitmap_pages_arr_size;
 	uint32_t gpr_offset, gpr_id, gmpu_table_size, psize;
 	uint64_t GPR_target_64;
+#if MTK_PMA_DEBUG
+	size_t i;
+#endif /* MTK_PMA_DEBUG */
 
 	np = pdev->dev.of_node;
 
@@ -600,6 +702,13 @@ static int mtk_protected_memory_allocator_probe(struct platform_device *pdev)
 
 	epma_dev->allocated_pages_bitfield_arr = devm_kzalloc(&pdev->dev,
 		alloc_bitmap_pages_arr_size * BITFIELD_ELEM_SIZE, GFP_KERNEL);
+
+#if MTK_PMA_DEBUG
+	for (i = 0; i < MAX_NUM_ACITVE_CONTEXT; i++) {
+		epma_dev->allocation_recording[i].tgid = -1;
+		epma_dev->allocation_recording[i].allocated_pages = 0;
+	}
+#endif /* MTK_PMA_DEBUG */
 
 	if (!epma_dev->allocated_pages_bitfield_arr) {
 		dev_err(&pdev->dev, "failed to allocate resources\n");

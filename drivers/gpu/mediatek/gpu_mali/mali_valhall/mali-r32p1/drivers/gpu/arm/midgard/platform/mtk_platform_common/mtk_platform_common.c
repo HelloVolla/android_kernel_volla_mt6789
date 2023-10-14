@@ -20,6 +20,7 @@
 #include <linux/proc_fs.h>
 #if IS_ENABLED(CONFIG_MALI_MTK_MEM_TRACK)
 #include <device/mali_kbase_device.h>
+#include <linux/delay.h>
 #endif
 #endif
 #if IS_ENABLED(CONFIG_MALI_MTK_DEVFREQ)
@@ -37,6 +38,9 @@ static DEFINE_MUTEX(mfg_pm_lock);
 static struct kbase_device *mali_kbdev;
 #if IS_ENABLED(CONFIG_PROC_FS)
 static struct proc_dir_entry *mtk_mali_root;
+#endif
+#if IS_ENABLED(CONFIG_MALI_MTK_MEM_TRACK)
+static DEFINE_MUTEX(memtrack_lock);
 #endif
 
 struct kbase_device *mtk_common_get_kbdev(void)
@@ -155,35 +159,42 @@ DEFINE_PROC_SHOW_ATTRIBUTE(mtk_common_gpu_utilization);
 static int mtk_common_gpu_memory_show(struct seq_file *m, void *v)
 {
 #if IS_ENABLED(CONFIG_MALI_MTK_MEM_TRACK)
-	struct list_head *entry;
-	const struct list_head *kbdev_list;
+	struct kbase_device *kbdev = (struct kbase_device *)mtk_common_get_kbdev();
+	struct kbase_context *kctx;
+	unsigned int trylock_count = 0;
+
+	if (IS_ERR_OR_NULL(kbdev))
+		return -1;
 
 	lockdep_off();
 
-	kbdev_list = kbase_device_get_list();
-	list_for_each(entry, kbdev_list) {
-		struct kbase_device *kbdev = NULL;
-		struct kbase_context *kctx;
-
-		kbdev = list_entry(entry, struct kbase_device, entry);
-		/* output the total memory usage and cap for this device */
-		seq_printf(m, "%-16s  %10u\n",
-				kbdev->devname,
-				atomic_read(&(kbdev->memdev.used_pages)));
-		mutex_lock(&kbdev->kctx_list_lock);
-		list_for_each_entry(kctx, &kbdev->kctx_list, kctx_list_link) {
-			/* output the memory usage and cap for each kctx
-			* opened on this device
-			*/
-			seq_printf(m, "  %s-0x%p %10u %10u\n",
-				"kctx",
-				kctx,
-				atomic_read(&(kctx->used_pages)),
-				kctx->tgid);
+	mutex_lock(&memtrack_lock);
+	while (!mutex_trylock(&kbdev->kctx_list_lock)) {
+		if (trylock_count > 3) {
+			pr_info("[%s] lock held, bypass memory usage query", __func__);
+			seq_printf(m, "<INVALID>");
+			goto out_lock_held;
 		}
-		mutex_unlock(&kbdev->kctx_list_lock);
+		trylock_count ++;
+		udelay(10);
 	}
-	kbase_device_put_list(kbdev_list);
+
+	/* output the total memory usage */
+	seq_printf(m, "%-16s  %10u\n",
+	           kbdev->devname,
+	           atomic_read(&(kbdev->memdev.used_pages)));
+	list_for_each_entry(kctx, &kbdev->kctx_list, kctx_list_link) {
+		/* output the memory usage and cap for each kctx */
+		seq_printf(m, "  %s-0x%p %10u %10u\n",
+		           "kctx",
+		           kctx,
+		           atomic_read(&(kctx->used_pages)),
+		           kctx->tgid);
+	}
+	mutex_unlock(&kbdev->kctx_list_lock);
+
+out_lock_held:
+	mutex_unlock(&memtrack_lock);
 
 	lockdep_on();
 #else
@@ -193,47 +204,6 @@ static int mtk_common_gpu_memory_show(struct seq_file *m, void *v)
 	return 0;
 }
 DEFINE_PROC_SHOW_ATTRIBUTE(mtk_common_gpu_memory);
-
-#if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
-static int mtk_common_logbuf_kbase_show(struct seq_file *m, void *v)
-{
-	struct kbase_device *kbdev = (struct kbase_device *)mtk_common_get_kbdev();
-
-	if (IS_ERR_OR_NULL(kbdev))
-		return -1;
-
-	mtk_common_debug_logbuf_dump(&kbdev->logbuf_kbase, m);
-
-	return 0;
-}
-DEFINE_PROC_SHOW_ATTRIBUTE(mtk_common_logbuf_kbase);
-
-static int mtk_common_logbuf_exception_show(struct seq_file *m, void *v)
-{
-	struct kbase_device *kbdev = (struct kbase_device *)mtk_common_get_kbdev();
-
-	if (IS_ERR_OR_NULL(kbdev))
-		return -1;
-
-	mtk_common_debug_logbuf_dump(&kbdev->logbuf_exception, m);
-
-	return 0;
-}
-DEFINE_PROC_SHOW_ATTRIBUTE(mtk_common_logbuf_exception);
-
-static int mtk_common_logbuf_csffw_show(struct seq_file *m, void *v)
-{
-	struct kbase_device *kbdev = (struct kbase_device *)mtk_common_get_kbdev();
-
-	if (IS_ERR_OR_NULL(kbdev))
-		return -1;
-
-	mtk_common_debug_logbuf_dump(&kbdev->logbuf_csffw, m);
-
-	return 0;
-}
-DEFINE_PROC_SHOW_ATTRIBUTE(mtk_common_logbuf_csffw);
-#endif
 
 void mtk_common_procfs_init(void)
 {
@@ -249,14 +219,6 @@ void mtk_common_procfs_init(void)
   	}
 	proc_create("utilization", 0444, mtk_mali_root, &mtk_common_gpu_utilization_proc_ops);
 	proc_create("gpu_memory", 0444, mtk_mali_root, &mtk_common_gpu_memory_proc_ops);
-#if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
-	if (kbdev->logbuf_kbase.entries)
-		proc_create(kbdev->logbuf_kbase.name, 0444, mtk_mali_root, &mtk_common_logbuf_kbase_proc_ops);
-	if (kbdev->logbuf_exception.entries)
-		proc_create(kbdev->logbuf_exception.name, 0444, mtk_mali_root, &mtk_common_logbuf_exception_proc_ops);
-	if (kbdev->logbuf_csffw.entries)
-		proc_create(kbdev->logbuf_csffw.name, 0444, mtk_mali_root, &mtk_common_logbuf_csffw_proc_ops);
-#endif
 }
 
 void mtk_common_procfs_exit(void)
@@ -269,14 +231,6 @@ void mtk_common_procfs_exit(void)
 	mtk_mali_root = NULL;
 	remove_proc_entry("utilization", mtk_mali_root);
 	remove_proc_entry("gpu_memory", mtk_mali_root);
-#if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
-	if (kbdev->logbuf_kbase.entries)
-		remove_proc_entry(kbdev->logbuf_kbase.name, mtk_mali_root);
-	if (kbdev->logbuf_exception.entries)
-		remove_proc_entry(kbdev->logbuf_exception.name, mtk_mali_root);
-	if (kbdev->logbuf_csffw.entries)
-		remove_proc_entry(kbdev->logbuf_csffw.name, mtk_mali_root);
-#endif
 	remove_proc_entry("mtk_mali", NULL);
 }
 #endif

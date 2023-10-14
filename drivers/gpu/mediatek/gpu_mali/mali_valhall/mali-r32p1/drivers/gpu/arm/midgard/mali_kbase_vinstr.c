@@ -152,6 +152,7 @@ unsigned int *kernel_dump;
 //check the mtk tool using now
 int mtk_pm_tool = pm_non;
 int ds5_used = 1;
+static DEFINE_MUTEX(gpu_vinstr_mtk_lock);
 
 static struct kbase_vinstr_client *mtk_cli = NULL;
 struct mtk_gpu_perf{
@@ -1223,12 +1224,14 @@ int MTK_kbase_vinstr_hwcnt_reader_setup(
 
 	/* Add the new client. No need to reschedule worker, as not periodic */
 	mutex_lock(&vctx->lock);
+	mutex_lock(&gpu_vinstr_mtk_lock);
 
 	vctx->client_count++;
 	list_add(&vcli->node, &vctx->clients);
 	mtk_cli = vcli;
 	ds5_used = 0;
 	mutex_unlock(&vctx->lock);
+	mutex_unlock(&gpu_vinstr_mtk_lock);
 	return fd;
 error:
 	kbasep_vinstr_client_destroy(vcli);
@@ -1238,15 +1241,18 @@ error:
 
 void MTK_kbasep_vinstr_hwcnt_set_interval(unsigned int interval)
 {
+	mutex_lock(&gpu_vinstr_mtk_lock);
 	if (mtk_cli != NULL) {
 		kbasep_vinstr_hwcnt_reader_ioctl_set_interval(mtk_cli, interval);
 	}
+	mutex_unlock(&gpu_vinstr_mtk_lock);
 }
 
 void MTK_kbasep_vinstr_hwcnt_release(void)
 {
 	mtk_pm_tool = pm_non;
 	ds5_used = 1;
+	mutex_lock(&gpu_vinstr_mtk_lock);
 	if (mtk_cli != NULL) {
 		mutex_lock(&mtk_cli->vctx->lock);
 		mtk_cli->vctx->suspend_count = 0;
@@ -1255,7 +1261,9 @@ void MTK_kbasep_vinstr_hwcnt_release(void)
 		mutex_unlock(&mtk_cli->vctx->lock);
 
 		kbasep_vinstr_client_destroy(mtk_cli);
+		mtk_cli = NULL;
 	}
+	mutex_unlock(&gpu_vinstr_mtk_lock);
 }
 
 void MTK_update_gpu_LTR(void)

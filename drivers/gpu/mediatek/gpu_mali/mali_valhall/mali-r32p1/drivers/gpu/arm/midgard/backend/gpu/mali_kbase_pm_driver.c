@@ -60,7 +60,6 @@
 #include <mtk_gpufreq.h>
 #include <mali_kbase_hwaccess_time.h>
 #include <platform/mtk_platform_common.h>
-#include <platform/mtk_platform_common/mtk_platform_debug.h>
 #include <ged_dcs.h>
 #include <ged_log.h>
 #if IS_ENABLED(CONFIG_MTK_IRQ_DBG)
@@ -275,7 +274,7 @@ static void mali_cci_flush_l2(struct kbase_device *kbdev)
 
 	kbase_reg_write(kbdev,
 			GPU_CONTROL_REG(GPU_COMMAND),
-			GPU_COMMAND_CLEAN_INV_CACHES);
+			GPU_COMMAND_CACHE_CLN_INV_L2);
 
 	raw = kbase_reg_read(kbdev,
 		GPU_CONTROL_REG(GPU_IRQ_RAWSTAT));
@@ -656,10 +655,6 @@ static int kbase_pm_mcu_update_state(struct kbase_device *kbdev)
 			if (kbase_pm_is_mcu_desired(kbdev) &&
 			    !backend->policy_change_clamp_state_to_off &&
 			    backend->l2_state == KBASE_L2_ON) {
-#if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
-				mtk_common_debug_logbuf_print(&kbdev->logbuf_kbase,
-					"re-enabling MCU here");
-#endif
 				kbase_csf_firmware_trigger_reload(kbdev);
 				backend->mcu_state = KBASE_MCU_PEND_ON_RELOAD;
 			}
@@ -1179,7 +1174,7 @@ static int kbase_pm_l2_update_state(struct kbase_device *kbdev)
 					 * powered off.
 					 */
 					kbase_gpu_start_cache_clean_nolock(
-							kbdev);
+							kbdev, GPU_COMMAND_CACHE_CLN_INV_L2);
 #if !MALI_USE_CSF
 				KBASE_KTRACE_ADD(kbdev, PM_CORES_CHANGE_AVAILABLE_TILER, NULL, 0u);
 #else
@@ -1560,7 +1555,8 @@ static int kbase_pm_shaders_update_state(struct kbase_device *kbdev)
 			shader_poweroff_timer_queue_cancel(kbdev);
 
 			if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_TTRX_921)) {
-				kbase_gpu_start_cache_clean_nolock(kbdev);
+				kbase_gpu_start_cache_clean_nolock(
+						kbdev, GPU_COMMAND_CACHE_CLN_INV_L2);
 				backend->shaders_state =
 					KBASE_SHADERS_L2_FLUSHING_CORESTACK_ON;
 			} else {
@@ -1987,9 +1983,9 @@ static void kbase_pm_timed_out(struct kbase_device *kbdev)
 
 #if MALI_USE_CSF
 #if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
-	mtk_common_debug_logbuf_print(&kbdev->logbuf_kbase,
-		"[%llu] Power transition timed out (%d ms) unexpectedly, MCU sw state = %d (%s)",
-		kbase_backend_get_cycle_cnt(kbdev),
+	ged_log_buf_print2(
+		kbdev->ged_log_buf_hnd_kbase, GED_LOG_ATTR_TIME,
+		"Power transition timed out (%d ms) unexpectedly, MCU sw state = %d (%s)\n",
 		PM_TIMEOUT_MS,
 		kbdev->pm.backend.mcu_state,
 		kbase_mcu_state_to_string(kbdev->pm.backend.mcu_state));
@@ -2714,16 +2710,31 @@ static int kbase_pm_do_reset(struct kbase_device *kbdev)
 	/* Wait for the RESET_COMPLETED interrupt to be raised */
 	kbase_pm_wait_for_reset(kbdev);
 
+#if IS_ENABLED(CONFIG_MALI_MTK_TIMEOUT_RESET)
+	if (!kbdev->reset_force_hard_reset) {
+#endif
 	if (!rtdata.timed_out) {
 		/* GPU has been reset */
 		hrtimer_cancel(&rtdata.timer);
 		destroy_hrtimer_on_stack(&rtdata.timer);
+		dev_info(kbdev->dev, "GPU soft reset completed");
 #if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
-		mtk_common_debug_logbuf_print(&kbdev->logbuf_kbase,
-			"GPU soft reset completed");
+		ged_log_buf_print2(
+			kbdev->ged_log_buf_hnd_kbase, GED_LOG_ATTR_TIME,
+			"GPU soft reset completed\n");
 #endif
 		return 0;
 	}
+#if IS_ENABLED(CONFIG_MALI_MTK_TIMEOUT_RESET)
+	} else {
+		dev_info(kbdev->dev, "No need to check if GPU soft reset is completed");
+#if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
+		ged_log_buf_print2(
+			kbdev->ged_log_buf_hnd_kbase, GED_LOG_ATTR_TIME,
+			"No need to check if GPU soft reset is completed\n");
+#endif
+	}
+#endif
 
 	/* No interrupt has been received - check if the RAWSTAT register says
 	 * the reset has completed
@@ -2735,8 +2746,9 @@ static int kbase_pm_do_reset(struct kbase_device *kbdev)
 		 */
 		dev_err(kbdev->dev, "Reset interrupt didn't reach CPU. Check interrupt assignments.\n");
 #if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
-		mtk_common_debug_logbuf_print(&kbdev->logbuf_exception,
-			"Reset interrupt didn't reach CPU. Check interrupt assignments");
+		ged_log_buf_print2(
+			kbdev->ged_log_buf_hnd_kbase, GED_LOG_ATTR_TIME,
+			"Reset interrupt didn't reach CPU. Check interrupt assignments\n");
 		dev_info(kbdev->dev, "GPU_IRQ_RAWSTAT=0x%08x GPU_IRQ_MASK=0x%08x GPU_IRQ_STATUS=0x%08x\n",
 						kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_RAWSTAT)),
 						kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_MASK)),
@@ -2775,6 +2787,12 @@ static int kbase_pm_do_reset(struct kbase_device *kbdev)
 #endif /* CONFIG_MALI_ARBITER_SUPPORT */
 		dev_err(kbdev->dev, "Failed to soft-reset GPU (timed out after %d ms), now attempting a hard reset\n",
 					RESET_TIMEOUT);
+#if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
+		ged_log_buf_print2(
+			kbdev->ged_log_buf_hnd_kbase, GED_LOG_ATTR_TIME,
+			"Failed to soft-reset GPU (timed out after %d ms), now attempting a hard reset\n",
+			RESET_TIMEOUT);
+#endif
 		KBASE_KTRACE_ADD(kbdev, CORE_GPU_HARD_RESET, NULL, 0);
 		kbase_reg_write(kbdev, GPU_CONTROL_REG(GPU_COMMAND),
 					GPU_COMMAND_HARD_RESET);
@@ -2788,13 +2806,21 @@ static int kbase_pm_do_reset(struct kbase_device *kbdev)
 		/* Wait for the RESET_COMPLETED interrupt to be raised */
 		kbase_pm_wait_for_reset(kbdev);
 
+#if IS_ENABLED(CONFIG_MALI_MTK_TIMEOUT_RESET)
+		spin_lock(&kbdev->reset_force_change);
+		kbdev->reset_force_hard_reset = false;
+		spin_unlock(&kbdev->reset_force_change);
+#endif
+
 		if (!rtdata.timed_out) {
 			/* GPU has been reset */
 			hrtimer_cancel(&rtdata.timer);
 			destroy_hrtimer_on_stack(&rtdata.timer);
+			dev_info(kbdev->dev, "GPU hard reset completed");
 #if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
-			mtk_common_debug_logbuf_print(&kbdev->logbuf_kbase,
-				"GPU hard reset completed");
+			ged_log_buf_print2(
+				kbdev->ged_log_buf_hnd_kbase, GED_LOG_ATTR_TIME,
+				"GPU hard reset completed\n");
 #endif
 			return 0;
 		}
@@ -2804,8 +2830,9 @@ static int kbase_pm_do_reset(struct kbase_device *kbdev)
 		dev_err(kbdev->dev, "Failed to hard-reset the GPU (timed out after %d ms)\n",
 					RESET_TIMEOUT);
 #if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
-		mtk_common_debug_logbuf_print(&kbdev->logbuf_exception,
-			"Failed to hard-reset the GPU (timed out after %d ms)",
+		ged_log_buf_print2(
+			kbdev->ged_log_buf_hnd_kbase, GED_LOG_ATTR_TIME,
+			"Failed to hard-reset the GPU (timed out after %d ms)\n",
 			RESET_TIMEOUT);
 #endif
 #ifdef CONFIG_MALI_ARBITER_SUPPORT

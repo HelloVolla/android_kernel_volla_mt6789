@@ -51,7 +51,6 @@
 #if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
 #include <mtk_gpufreq.h>
 #include <platform/mtk_platform_common.h>
-#include <platform/mtk_platform_common/mtk_platform_debug.h>
 #endif
 
 #define MALI_MAX_FIRMWARE_NAME_LEN ((size_t)30)
@@ -298,9 +297,7 @@ static void wait_ready(struct kbase_device *kbdev)
 		dev_info(kbdev->dev, "AS_ACTIVE bit stuck when MCU load the MMU tables\n");
 		ged_log_buf_print2(
 			 kbdev->ged_log_buf_hnd_kbase, GED_LOG_ATTR_TIME,
-			 "AS_ACTIVE bit stuck when MCU load the MMU tables");
-		mtk_common_debug_logbuf_print(&kbdev->logbuf_exception,
-			"AS_ACTIVE bit stuck when MCU load the MMU tables");
+			 "AS_ACTIVE bit stuck when MCU load the MMU tables\n");
 		if (!mtk_common_gpufreq_bringup()) {
 			gpufreq_dump_infra_status();
 			mtk_common_debug_dump();
@@ -1349,12 +1346,8 @@ static int wait_for_global_request(struct kbase_device *const kbdev,
 #if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
 		ged_log_buf_print2(
 			 kbdev->ged_log_buf_hnd_kbase, GED_LOG_ATTR_TIME,
-			 "Timed out (%d ms) waiting for global request %x to complete",
+			 "Timeout (%d ms) waiting for global request %x to complete\n",
 			 kbdev->csf.fw_timeout_ms, req_mask);
-		mtk_common_debug_logbuf_print(&kbdev->logbuf_exception,
-			"[%llu] Timeout (%d ms) waiting for global request %x to complete",
-			kbase_backend_get_cycle_cnt(kbdev),
-			kbdev->csf.fw_timeout_ms, req_mask);
 #endif
 		err = -ETIMEDOUT;
 	}
@@ -1576,9 +1569,7 @@ static void kbase_csf_firmware_reload_worker(struct work_struct *work)
 #if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
 		ged_log_buf_print2(
 			 kbdev->ged_log_buf_hnd_kbase, GED_LOG_ATTR_TIME,
-			 "!! Reload of FW had failed, MCU won't be re-enabled !!");
-		mtk_common_debug_logbuf_print(&kbdev->logbuf_exception,
-			"!! Reload of FW had failed, MCU won't be re-enabled !!");
+			 "Reload of FW had failed, MCU won't be re-enabled !!\n");
 #endif
 		return;
 	}
@@ -1617,14 +1608,15 @@ void kbase_csf_firmware_reload_completed(struct kbase_device *kbdev)
 	 */
 	version = get_firmware_version(kbdev);
 
-	if (version != kbdev->csf.global_iface.version)
+	if (version != kbdev->csf.global_iface.version) {
 		dev_err(kbdev->dev, "Version check failed in firmware reboot.");
-
 #if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
-	mtk_common_debug_logbuf_print(&kbdev->logbuf_kbase,
-		"FW reboot completed %llu",
-		kbase_backend_get_cycle_cnt(kbdev));
+		ged_log_buf_print2(
+			kbdev->ged_log_buf_hnd_kbase, GED_LOG_ATTR_TIME,
+			"Version check failed in firmware reboot\n");
 #endif
+	}
+
 	KBASE_KTRACE_ADD(kbdev, FIRMWARE_REBOOT, NULL, 0u);
 
 	/* Tell MCU state machine to transit to next state */
@@ -2158,11 +2150,6 @@ void kbase_csf_enter_protected_mode(struct kbase_device *kbdev)
 	kbase_csf_scheduler_spin_lock_assert_held(kbdev);
 	set_global_request(global_iface, GLB_REQ_PROTM_ENTER_MASK);
 	dev_vdbg(kbdev->dev, "Sending request to enter protected mode");
-#if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
-	mtk_common_debug_logbuf_print(&kbdev->logbuf_kbase,
-		"Sending request to enter protected mode with MCU in sw state %d",
-		kbdev->pm.backend.mcu_state);
-#endif
 	kbase_csf_ring_doorbell(kbdev, CSF_KERNEL_DOORBELL_NR);
 }
 
@@ -2202,6 +2189,11 @@ void kbase_csf_wait_protected_mode_enter(struct kbase_device *kbdev)
 
 		if (loop == max_iterations) {
 			dev_err(kbdev->dev, "Timeout for actual pmode entry after PROTM_ENTER ack");
+#if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
+			ged_log_buf_print2(
+				kbdev->ged_log_buf_hnd_kbase, GED_LOG_ATTR_TIME,
+				"Timeout for actual pmode entry after PROTM_ENTER ack\n");
+#endif
 			err = -ETIMEDOUT;
 		}
 	}
@@ -2220,10 +2212,6 @@ void kbase_csf_firmware_trigger_mcu_halt(struct kbase_device *kbdev)
 	kbase_csf_scheduler_spin_lock(kbdev, &flags);
 	set_global_request(global_iface, GLB_REQ_HALT_MASK);
 	dev_vdbg(kbdev->dev, "Sending request to HALT MCU");
-#if IS_ENABLED(CONFIG_MALI_MTK_DEBUG)
-	mtk_common_debug_logbuf_print(&kbdev->logbuf_kbase,
-		"Sending request to HALT MCU");
-#endif
 	kbase_csf_ring_doorbell(kbdev, CSF_KERNEL_DOORBELL_NR);
 	kbase_csf_scheduler_spin_unlock(kbdev, flags);
 }

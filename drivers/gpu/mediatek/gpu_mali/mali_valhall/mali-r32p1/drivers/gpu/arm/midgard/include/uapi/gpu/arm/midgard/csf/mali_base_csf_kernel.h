@@ -290,9 +290,21 @@ typedef __u32 base_context_create_flags;
 
 #define BASE_QUEUE_MAX_PRIORITY (15U)
 
-/* CQS Sync object is an array of __u32 event_mem[2], error field index is 1 */
-#define BASEP_EVENT_VAL_INDEX (0U)
-#define BASEP_EVENT_ERR_INDEX (1U)
+/* Sync32 object fields definition */
+#define BASEP_EVENT32_VAL_OFFSET (0U)
+#define BASEP_EVENT32_ERR_OFFSET (4U)
+#define BASEP_EVENT32_SIZE_BYTES (8U)
+
+/* Sync64 object fields definition */
+#define BASEP_EVENT64_VAL_OFFSET (0U)
+#define BASEP_EVENT64_ERR_OFFSET (8U)
+#define BASEP_EVENT64_SIZE_BYTES (16U)
+
+/* Sync32 object alignment, equal to its size */
+#define BASEP_EVENT32_ALIGN_BYTES (8U)
+
+/* Sync64 object alignment, equal to its size */
+#define BASEP_EVENT64_ALIGN_BYTES (16U)
 
 /* The upper limit for number of objects that could be waited/set per command.
  * This limit is now enforced as internally the error inherit inputs are
@@ -333,9 +345,7 @@ enum base_kcpu_command_type {
 	BASE_KCPU_COMMAND_TYPE_GROUP_SUSPEND,
 	BASE_KCPU_COMMAND_TYPE_ERROR_BARRIER,
 	BASE_KCPU_COMMAND_TYPE_SAMPLE_TIME,
-#if IS_ENABLED(CONFIG_MALI_MTK_FENCE_DEBUG)
 	BASE_KCPU_COMMAND_TYPE_COUNT,
-#endif /* CONFIG_MALI_MTK_FENCE_DEBUG */
 };
 #else
 /**

@@ -24,10 +24,6 @@
 
 #include <linux/types.h>
 
-#if defined(CONFIG_GPU_MT6833)
-#define CONFIG_MALI_MTK_GPU_BM_JM
-#endif
-
 /* Memory allocation, access/hint flags.
  *
  * See base_mem_alloc_flags.
@@ -770,6 +766,9 @@ typedef __u8 base_jd_prio;
  */
 #define BASE_JD_PRIO_REALTIME    ((base_jd_prio)3)
 
+/* Invalid atom priority (max uint8_t value) */
+#define BASE_JD_PRIO_INVALID ((base_jd_prio)255)
+
 /* Count of the number of priority levels. This itself is not a valid
  * base_jd_prio setting
  */
@@ -1208,9 +1207,5 @@ struct base_dump_cpu_gpu_counters {
 	__u32 usec;
 	__u8 padding[36];
 };
-
-#if defined(CONFIG_GPU_MT6833)
-#undef CONFIG_MALI_MTK_GPU_BM_JM
-#endif
 
 #endif /* _UAPI_BASE_JM_KERNEL_H_ */
